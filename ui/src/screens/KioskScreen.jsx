@@ -761,7 +761,7 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
     setLoading('skip');
     console.log('%c[UNLOCK] Skip pay → unlock box:', 'color:#fbbf24', { pin: orderPin, boxId: selectedBox?.id });
     try {
-      const res = await api.unlockBox(orderPin, selectedBox?.id, 'DROP_OFF');
+      const res = await api.unlockBox(LOCKER_ID, orderPin, selectedBox?.id, 'DROP_OFF');
       if (res.success || res.data?.success) {
         await confirmAfterUnlock();
         showSuccess('Tủ đã mở!', 'Vui lòng gửi đồ vào box và đóng cửa.', successExtra);
@@ -809,7 +809,7 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
     setLoading('open');
     if (pollRef.current) { clearInterval(pollRef.current); setPolling(false); }
     try {
-      const res = await api.unlockBox(orderPin, selectedBox?.id, 'DROP_OFF');
+      const res = await api.unlockBox(LOCKER_ID, orderPin, selectedBox?.id, 'DROP_OFF');
       if (res.success || res.data?.success) {
         await confirmAfterUnlock();
         showSuccess('Thanh toán thành công!', 'Tủ đã mở. Vui lòng gửi đồ vào và đóng cửa.', successExtra);
@@ -953,7 +953,7 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
       const verifyRes = await api.verifyPin(code, selectedBox.id);
 
       if (verifyRes.success && verifyRes.data?.valid) {
-        const unlockRes = await api.unlockBox(code, selectedBox.id, 'PICKUP');
+        const unlockRes = await api.unlockBox(LOCKER_ID, code, selectedBox.id, 'PICKUP');
         if (unlockRes.success || unlockRes.data?.success) {
           setPinState('success');
           const oCode = verifyRes.data?.orderCode || unlockRes.data?.orderCode || '';
@@ -1072,7 +1072,7 @@ function StaffScreen({ goHome, showSuccess }) {
     setLoading(true); setMsg('');
     try {
       console.log('%c[STAFF] Unlocking with access code:', 'color:#fbbf24', accessCode);
-      const res = await api.unlockWithCode(null, accessCode, undefined);
+      const res = await api.unlockWithCode(LOCKER_ID, accessCode);
       if (res.success && res.data?.success) {
         const boxInfo = res.data.boxes?.map(b => `#${b.boxNumber}`).join(', ') || '';
         const purpose = res.data.action === 'COLLECT' ? 'Lấy đồ' : res.data.action === 'RETURN' ? 'Trả đồ' : '';
