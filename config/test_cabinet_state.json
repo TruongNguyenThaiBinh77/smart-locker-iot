@@ -1,0 +1,9 @@
+{
+  "cabinetId": "cab-001",
+  "cabinetName": "CAB-TEST",
+  "totalRows": 5,
+  "totalColumns": 5,
+  "address": "123 Test Street, AI City",
+  "heartbeatInterval": 60,
+  "isSynced": true
+}
