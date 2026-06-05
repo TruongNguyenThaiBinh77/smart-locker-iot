@@ -47,11 +47,12 @@ class Settings:
     # ─── Firmware ───
     FIRMWARE_VERSION = os.getenv("FIRMWARE_VERSION", "v1.0.0")
 
-    # ─── Database ───
-    DATABASE_PATH = os.getenv(
-        "DATABASE_PATH",
-        str(Path(__file__).parent.parent / "data" / "locker_system.db")
-    )
+    # ─── Database (PostgreSQL) ───
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5432))
+    POSTGRES_DB = os.getenv("POSTGRES_DB", "iot_locker")
+    POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 
     def update_mqtt_config(self, db_config: dict):
         """Cập nhật cấu hình MQTT từ database (ghi đè env)."""
