@@ -56,8 +56,8 @@ export const createPayment     = (token, orderId, method) => be('POST', '/api/pa
 
 // ─── IoT (public) ────────────────────────────────────────────
 export const verifyPin         = (pinCode, boxId)     => be('POST', '/api/iot/verify-pin', { pinCode, boxId });
-export const unlockBox         = (pinCode, boxId, actionType) => be('POST', '/api/iot/unlock', { pinCode, boxId, actionType });
-export const unlockWithCode    = (accessCode)         => be('POST', '/api/iot/unlock-with-code', { accessCode });
+export const unlockBox         = (lockerId, pinCode, boxId, actionType) => be('POST', '/api/iot/unlock', { lockerId, pinCode, boxId, actionType });
+export const unlockWithCode    = (lockerId, accessCode)         => be('POST', '/api/iot/unlock-with-code', { lockerId, code: accessCode });
 
 // ─── Local FastAPI (IoT Gateway) ─────────────────────────────
 export const getSystemInfo     = ()                   => loc('GET', '/system/info');
