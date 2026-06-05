@@ -1,9 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 import threading
+import socket
+import os
+from pathlib import Path
 from utils.logger import get_logger
 from config.settings import settings
 
@@ -28,14 +33,47 @@ def create_config_app(db_manager, cabinet_state):
         allow_headers=["*"],
     )
 
+    def _get_local_ip() -> str:
+        """Lấy IP address của máy."""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "0.0.0.0"
+
     @app.get("/system/info")
     @app.get("/system/info/")
     async def get_system_info():
+        loc = cabinet_state.location
         return {
             "macAddress": settings.MAC_ADDRESS,
             "version": settings.FIRMWARE_VERSION,
-            "status": "online"
+            "status": "online",
+            "ipAddress": _get_local_ip(),
+            "location": loc,
+            "cabinetCount": len(cabinet_state.all_cabinets),
         }
+
+    @app.get("/system/state")
+    async def get_system_state():
+        """Trả về toàn bộ trạng thái: location, cabinets."""
+        return {
+            "location": cabinet_state.location,
+            "cabinets": cabinet_state.all_cabinets,
+            "isConfigured": cabinet_state.is_configured,
+        }
+
+    @app.get("/logs/recent")
+    async def get_recent_logs(limit: int = 50):
+        """Lấy các MQTT log gần nhất."""
+        try:
+            logs = db_manager.get_recent_logs(limit=limit)
+            return logs
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/health")
     async def health_check():
@@ -93,6 +131,14 @@ def create_config_app(db_manager, cabinet_state):
         except Exception as e:
             logger.error(f"Failed to clear setup: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    # ─── Static UI Dashboard ───
+    _ui_dir = Path(__file__).parent.parent / "ui" / "dist"
+    if _ui_dir.exists():
+        app.mount("/ui", StaticFiles(directory=str(_ui_dir), html=True), name="ui")
+        logger.info(f"Dashboard UI mounted at /ui (dir={_ui_dir})")
+    else:
+        logger.warning(f"UI directory not found at {_ui_dir}. Make sure you ran 'npm run build' inside ui/.")
 
     return app
 
