@@ -1,0 +1,14 @@
+[project]
+name = "aisl-project"
+version = "0.1.0"
+description = "AISL Smart Locker IoT – Raspberry Pi Controller"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "paho-mqtt>=2.1.0",
+    "pyserial>=3.5",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+]
