@@ -1,1 +1,81 @@
-# smart-laundry-locker-iot
+# Smart Locker IoT
+
+<!-- CURRENT_STATUS_START -->
+> **Cập nhật 2026-06-13:** Tài liệu này đã được rà soát để bám theo trạng thái hiện tại của dự án. Backend Phase 2 cho locker flow đã triển khai SEND / RENTAL / QR / RBAC / maintenance; FE admin build pass; Flutter mobile đã có luồng Customer, Manager và Maintenance. Nguồn trạng thái chuẩn: `laundry-locker-microservices/docs/CURRENT_PROJECT_STATUS.md`, `RUN_RESULT.md`, `LOCKER_FLOW_PLAN.md`.
+<!-- CURRENT_STATUS_END -->
+
+Python/uv runtime for the smart locker cabinet side. This project is intended to run on a Raspberry Pi and talk to cabinet hardware through serial/RS485 while using MQTT for backend/device messages.
+
+## Current Role In The System
+
+The backend now supports access verification with either:
+
+- Active PIN.
+- Signed QR token returned as `qrToken` in `OrderResponse`.
+
+The relevant backend endpoint is:
+
+```http
+POST /api/iot/verify-access
+```
+
+Body:
+
+```json
+{
+  "boxId": 16,
+  "pinCode": "123456 or LLQR..."
+}
+```
+
+The IoT runtime should use the same broker/topic configuration as `iot-service` when testing real cabinet commands.
+
+## Run Locally
+
+```powershell
+Set-Location G:\BigProject\smart-locker-iot
+uv sync
+uv run python main.py
+```
+
+On a normal PC without the Arduino/serial hardware attached, serial initialization may fail. Use simulation settings for software-only checks.
+
+## Backend Dependency
+
+Start the backend first:
+
+```powershell
+Set-Location G:\BigProject\laundry-locker-microservices
+mvn.cmd clean package -DskipTests
+docker compose up --build -d
+```
+
+Gateway:
+
+```text
+http://localhost:8080
+```
+
+IoT service:
+
+```text
+http://localhost:8088
+```
+
+## MQTT Notes
+
+Backend `iot-service` currently defaults to a public broker unless overridden by environment/config. For real integration, make sure both sides point to the same broker.
+
+Typical concepts used by the cabinet runtime:
+
+- Device heartbeat.
+- Box/cell status update.
+- Backend command to open a box.
+- Command result back to backend.
+
+## Future Work
+
+- Tablet-web locker UI.
+- Door/weight sensor integration to auto-mark cells occupied after deposit.
+- Real drone deposit channel integration.
+- Biometric verification on Raspberry Pi.

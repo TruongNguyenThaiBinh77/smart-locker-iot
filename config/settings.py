@@ -48,6 +48,8 @@ class Settings:
     FIRMWARE_VERSION = os.getenv("FIRMWARE_VERSION", "v1.0.0")
 
     # ─── Database (PostgreSQL) ───
+    # DATABASE_PATH chỉ là tham số legacy (SQLite) — DatabaseManager hiện bỏ qua và dùng POSTGRES_*
+    DATABASE_PATH = os.getenv("DATABASE_PATH", "locker.db")
     POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5432))
     POSTGRES_DB = os.getenv("POSTGRES_DB", "iot_locker")

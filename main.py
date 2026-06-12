@@ -51,10 +51,12 @@ def main():
     logger.info("[2/7] Hardware controller initialized")
 
     # 3. Khởi tạo Serial Manager (Arduino communication)
+    # SIMULATION=true cho phép chạy trên PC không có Arduino (mặc định false)
+    import os
     serial_manager = SerialManager(
         port=settings.SERIAL_PORT,
         baud_rate=settings.SERIAL_BAUD_RATE,
-        simulation=False
+        simulation=os.getenv("SIMULATION", "false").lower() == "true"
     )
     logger.info("[3/7] Serial manager initialized")
 
