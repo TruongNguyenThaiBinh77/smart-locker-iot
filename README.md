@@ -62,6 +62,42 @@ IoT service:
 http://localhost:8088
 ```
 
+## Demo Simulation (No Hardware)
+
+`main.py` is the real hardware-track runtime: it only starts answering open
+commands after it receives a `SETUP_LOCKERS` handshake on
+`iot/{macAddress}/command/setup`, and nothing in the backend sends that
+handshake yet (it's meant for a provisioning step that ships with the real
+Raspberry Pi/Arduino integration). `SIMULATION=true` only mocks the serial
+layer underneath `main.py` — it does not skip that handshake — so running
+`main.py` alone today will never reply to `iot-service`'s unlock requests.
+
+For demoing the mobile -> backend -> IoT -> backend -> mobile unlock loop
+*right now*, without waiting on hardware, run the standalone simulator
+instead. It is a separate script and does not touch `main.py`/serial/setup
+code, so it won't conflict with that ongoing hardware work:
+
+```powershell
+Set-Location D:\capstone-laundry-locker\smart-locker-iot
+uv run python simulate_demo_cabinet.py
+```
+
+It subscribes to `cabinet/+/command/open` for every locker and replies on
+`cabinet/{lockerId}/command/open/result` after a short simulated delay,
+matching exactly what `iot-service` (`LockerMqttService.sendUnlockCommandAsync`)
+publishes today. From the mobile app, opening an active SEND/RENTAL order
+and tapping "Mở tủ" calls `POST /api/iot/unlock`, which this script answers.
+
+Useful env vars (only for this script):
+
+- `SIM_DELAY_SECONDS` (default `1.5`) — simulated door latency.
+- `SIM_FORCE_FAIL` (default `false`) — reply `FAILED` to test the error path.
+- `MQTT_BROKER_URL` (e.g. `tcp://broker.hivemq.com:1883`) or `MQTT_BROKER`/`MQTT_PORT` — point at a different broker; defaults to the same broker `iot-service` defaults to.
+
+Once real hardware + the setup handshake are ready, retire this script and
+go through `main.py` instead — no backend changes are needed either way
+since both speak the same MQTT contract.
+
 ## MQTT Notes
 
 Backend `iot-service` currently defaults to a public broker unless overridden by environment/config. For real integration, make sure both sides point to the same broker.
