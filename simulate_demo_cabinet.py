@@ -24,6 +24,11 @@ box's new state to `cabinet/{lockerId}/command/sync` with body
 That message is fire-and-forget (no reply expected); this script just logs it,
 standing in for the cabinet updating its on-screen cell map.
 
+After a successful open it also reports the box's **physical** door state (GAP 2)
+on `cabinet/{lockerId}/locker/{boxId}/status` (`{"slotIndex": <id>, "hwState":
+"OPEN"|"CLOSED"}`). iot-service persists that hardware truth separately from the
+order-driven box status, so ops can spot mismatches.
+
 Usage:
     uv run python simulate_demo_cabinet.py
     SIM_FORCE_FAIL=true uv run python simulate_demo_cabinet.py   # test the failure path
@@ -63,6 +68,11 @@ OPEN_COMMAND_TOPIC = "cabinet/+/command/open"
 SYNC_COMMAND_TOPIC = "cabinet/+/command/sync"
 SIM_DELAY_SECONDS = float(os.getenv("SIM_DELAY_SECONDS", "1.5"))
 SIM_FORCE_FAIL = os.getenv("SIM_FORCE_FAIL", "false").lower() == "true"
+# Door auto-close (GAP 2): after a successful open, the cabinet reports the box
+# door OPEN then, a few seconds later, CLOSED on the box-status channel that
+# iot-service persists (`cabinet/{lockerId}/locker/{boxId}/status`). This is the
+# hardware truth, kept separate from the order-driven status.
+SIM_DOOR_CLOSE_SECONDS = float(os.getenv("SIM_DOOR_CLOSE_SECONDS", "4"))
 
 # Device health (GAP 3): iot-service's `LockerMqttService` already subscribes to
 # `cabinet/{id}/heartbeat` and records last-seen for the device-health dashboard
@@ -139,6 +149,22 @@ def _on_connect(client, userdata, flags, reason_code, properties=None):
         print(f"[SIM] Connect failed, reason_code={reason_code}")
 
 
+def _report_box_hw_state(client: mqtt.Client, locker_id: str, box_id, hw_state: str):
+    """GAP 2: report a box's physical door/sensor state on the status channel
+    iot-service persists (`cabinet/{lockerId}/locker/{boxId}/status`, boxId in
+    `slotIndex`). Kept separate from the order-driven status — hardware truth only."""
+    if not client.is_connected():
+        return
+    topic = f"cabinet/{locker_id}/locker/{box_id}/status"
+    payload = {
+        "slotIndex": box_id,
+        "hwState": hw_state,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    client.publish(topic, json.dumps(payload), qos=1)
+    print(f"[SIM] HW state -> {topic}: box={box_id} {hw_state}")
+
+
 def _reply_after_delay(client: mqtt.Client, locker_id: str, command_id, box_id):
     time.sleep(SIM_DELAY_SECONDS)
     failed = SIM_FORCE_FAIL
@@ -157,6 +183,16 @@ def _reply_after_delay(client: mqtt.Client, locker_id: str, command_id, box_id):
     client.publish(result_topic, json.dumps(payload), qos=1)
     icon = "FAILED" if failed else "OK"
     print(f"[SIM] {icon} -> {result_topic}: {json.dumps(payload)}")
+
+    # On a successful open, report the door physically OPEN now and CLOSED shortly
+    # after — gives iot-service real hardware telemetry to persist (GAP 2).
+    if not failed and box_id is not None:
+        _report_box_hw_state(client, locker_id, box_id, "OPEN")
+        threading.Timer(
+            SIM_DOOR_CLOSE_SECONDS,
+            _report_box_hw_state,
+            args=(client, locker_id, box_id, "CLOSED"),
+        ).start()
 
 
 def _on_message(client, userdata, msg):
