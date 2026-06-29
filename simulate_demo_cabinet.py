@@ -17,6 +17,13 @@ publishes to `cabinet/{lockerId}/command/open` with body
 waits up to 20s for a reply on `cabinet/{lockerId}/command/open/result`.
 This script answers that reply.
 
+It also mirrors the **booking -> IoT sync** (GAP 1): whenever an order
+reserves/occupies/releases a cell, locker-service -> iot-service publishes the
+box's new state to `cabinet/{lockerId}/command/sync` with body
+`{"boxId": <id>, "state": "RESERVED|OCCUPIED|AVAILABLE|FAULT", "orderId": <id>?}`.
+That message is fire-and-forget (no reply expected); this script just logs it,
+standing in for the cabinet updating its on-screen cell map.
+
 Usage:
     uv run python simulate_demo_cabinet.py
     SIM_FORCE_FAIL=true uv run python simulate_demo_cabinet.py   # test the failure path
@@ -40,6 +47,12 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
 OPEN_COMMAND_TOPIC = "cabinet/+/command/open"
+# Booking -> IoT sync (GAP 1): locker-service publishes a box's new lifecycle
+# state (RESERVED/OCCUPIED/AVAILABLE/FAULT) here whenever an order reserves/
+# occupies/releases a cell, so the cabinet can mirror the booking. Fire-and-
+# forget on the backend side (no reply expected) -- we just log it as if the
+# cabinet were updating its on-screen cell map.
+SYNC_COMMAND_TOPIC = "cabinet/+/command/sync"
 SIM_DELAY_SECONDS = float(os.getenv("SIM_DELAY_SECONDS", "1.5"))
 SIM_FORCE_FAIL = os.getenv("SIM_FORCE_FAIL", "false").lower() == "true"
 
@@ -61,8 +74,8 @@ def _resolve_broker() -> tuple[str, int]:
 
 def _on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
-        print(f"[SIM] Connected. Subscribing to {OPEN_COMMAND_TOPIC}")
-        client.subscribe(OPEN_COMMAND_TOPIC, qos=1)
+        print(f"[SIM] Connected. Subscribing to {OPEN_COMMAND_TOPIC} and {SYNC_COMMAND_TOPIC}")
+        client.subscribe([(OPEN_COMMAND_TOPIC, 1), (SYNC_COMMAND_TOPIC, 1)])
     else:
         print(f"[SIM] Connect failed, reason_code={reason_code}")
 
@@ -96,6 +109,15 @@ def _on_message(client, userdata, msg):
         data = json.loads(msg.payload.decode())
     except json.JSONDecodeError:
         print(f"[SIM] Ignoring non-JSON payload on {msg.topic}")
+        return
+
+    if msg.topic.endswith("/command/sync"):
+        # Booking -> IoT sync: no reply expected, just mirror the cell state.
+        box_id = data.get("boxId", data.get("box_id"))
+        state = data.get("state")
+        order_id = data.get("orderId")
+        order_part = f" order={order_id}" if order_id is not None else ""
+        print(f"[SIM] SYNC: cabinet display updated -> locker={locker_id} box={box_id} state={state}{order_part}")
         return
 
     command_id = data.get("commandId")
