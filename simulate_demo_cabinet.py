@@ -36,6 +36,14 @@ configured):
     MQTT_BROKER / MQTT_PORT   alternative host/port pair if you'd rather set those
     SIM_DELAY_SECONDS  simulated door latency before replying (default 1.5)
     SIM_FORCE_FAIL     "true" to always reply FAILED, for testing the error path
+    SIM_HEARTBEAT_SECONDS    how often to heartbeat known cabinets (default 30)
+    SIM_HEARTBEAT_CABINETS   comma-separated cabinet/locker ids to mark ONLINE
+                             up-front, e.g. "2,3" (otherwise learned from traffic)
+
+Device health (GAP 3): iot-service records `cabinet/{id}/heartbeat` for the
+device-health dashboard (`GET /api/manage/iot/device-status`). Nothing was
+publishing one, so this sim now heartbeats every cabinet it knows about (seeded
+via SIM_HEARTBEAT_CABINETS and/or learned from open/sync traffic).
 """
 
 import json
@@ -56,6 +64,20 @@ SYNC_COMMAND_TOPIC = "cabinet/+/command/sync"
 SIM_DELAY_SECONDS = float(os.getenv("SIM_DELAY_SECONDS", "1.5"))
 SIM_FORCE_FAIL = os.getenv("SIM_FORCE_FAIL", "false").lower() == "true"
 
+# Device health (GAP 3): iot-service's `LockerMqttService` already subscribes to
+# `cabinet/{id}/heartbeat` and records last-seen for the device-health dashboard
+# (`GET /api/manage/iot/device-status`), but nothing was ever publishing one, so
+# the dashboard stayed empty. This sim now periodically heartbeats every cabinet
+# it knows about. Cabinets are learned from any traffic (open/sync command for
+# `cabinet/{id}/...`) and/or seeded up-front via SIM_HEARTBEAT_CABINETS so a
+# device can show ONLINE before the first command arrives.
+SIM_HEARTBEAT_SECONDS = float(os.getenv("SIM_HEARTBEAT_SECONDS", "30"))
+SIM_HEARTBEAT_CABINETS = [
+    c.strip() for c in os.getenv("SIM_HEARTBEAT_CABINETS", "").split(",") if c.strip()
+]
+_known_cabinets: set[str] = set()
+_known_lock = threading.Lock()
+
 
 def _resolve_broker() -> tuple[str, int]:
     """Same default as iot-service's `mqtt.broker-url` (tcp://broker.hivemq.com:1883)
@@ -72,10 +94,47 @@ def _resolve_broker() -> tuple[str, int]:
     return host, port
 
 
+def _publish_heartbeat(client: mqtt.Client, cabinet_id: str):
+    """Publish one ONLINE heartbeat for a cabinet. iot-service maps the topic
+    segment to the device id and stamps last-seen, so the device shows ONLINE."""
+    if not client.is_connected():
+        return
+    payload = {"status": "ONLINE", "timestamp": datetime.now(timezone.utc).isoformat()}
+    client.publish(f"cabinet/{cabinet_id}/heartbeat", json.dumps(payload), qos=1)
+
+
+def _learn_cabinet(client: mqtt.Client, cabinet_id: str):
+    """Remember a cabinet seen in traffic and heartbeat it immediately so it
+    appears ONLINE right away instead of waiting for the next interval tick."""
+    with _known_lock:
+        new = cabinet_id not in _known_cabinets
+        _known_cabinets.add(cabinet_id)
+    if new:
+        print(f"[SIM] Learned cabinet {cabinet_id} -> heartbeating it")
+        _publish_heartbeat(client, cabinet_id)
+
+
+def _heartbeat_loop(client: mqtt.Client):
+    """Background thread: periodically heartbeat every known cabinet."""
+    while True:
+        time.sleep(SIM_HEARTBEAT_SECONDS)
+        with _known_lock:
+            cabinets = list(_known_cabinets)
+        for cabinet_id in cabinets:
+            _publish_heartbeat(client, cabinet_id)
+        if cabinets:
+            print(f"[SIM] Heartbeat sent for {len(cabinets)} cabinet(s): {', '.join(cabinets)}")
+
+
 def _on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
         print(f"[SIM] Connected. Subscribing to {OPEN_COMMAND_TOPIC} and {SYNC_COMMAND_TOPIC}")
         client.subscribe([(OPEN_COMMAND_TOPIC, 1), (SYNC_COMMAND_TOPIC, 1)])
+        # Announce seeded cabinets ONLINE right after (re)connect.
+        with _known_lock:
+            cabinets = list(_known_cabinets)
+        for cabinet_id in cabinets:
+            _publish_heartbeat(client, cabinet_id)
     else:
         print(f"[SIM] Connect failed, reason_code={reason_code}")
 
@@ -105,6 +164,8 @@ def _on_message(client, userdata, msg):
     if len(parts) < 2:
         return
     locker_id = parts[1]
+    # Any traffic for this cabinet means it's alive — start heartbeating it.
+    _learn_cabinet(client, locker_id)
     try:
         data = json.loads(msg.payload.decode())
     except json.JSONDecodeError:
@@ -132,10 +193,17 @@ def _on_message(client, userdata, msg):
 
 def main():
     host, port = _resolve_broker()
+    with _known_lock:
+        _known_cabinets.update(SIM_HEARTBEAT_CABINETS)
     print("=" * 60)
     print("  Demo cabinet simulator (no hardware required)")
     print(f"  Broker: {host}:{port}")
     print(f"  Reply delay: {SIM_DELAY_SECONDS}s, force fail: {SIM_FORCE_FAIL}")
+    print(f"  Heartbeat: every {SIM_HEARTBEAT_SECONDS}s for known cabinets")
+    if SIM_HEARTBEAT_CABINETS:
+        print(f"  Seeded cabinets (ONLINE on connect): {', '.join(SIM_HEARTBEAT_CABINETS)}")
+    else:
+        print("  Cabinets learned from traffic (set SIM_HEARTBEAT_CABINETS=2,3 to pre-seed)")
     print("  This stands in for the real cabinet runtime (main.py) until")
     print("  Raspberry Pi/Arduino hardware + the setup handshake are ready.")
     print("=" * 60)
@@ -144,6 +212,8 @@ def main():
     client.on_connect = _on_connect
     client.on_message = _on_message
     client.connect(host, port, keepalive=60)
+
+    threading.Thread(target=_heartbeat_loop, args=(client,), daemon=True).start()
 
     try:
         client.loop_forever()
