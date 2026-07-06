@@ -98,6 +98,29 @@ Once real hardware + the setup handshake are ready, retire this script and
 go through `main.py` instead — no backend changes are needed either way
 since both speak the same MQTT contract.
 
+## Kiosk Web (màn hình tủ mô phỏng — `ui/`)
+
+Trong lúc chưa có tủ vật lý, web trong `ui/` đóng vai màn hình cảm ứng của
+tủ: khách đặt đơn trên mobile xong, tới "tủ" (mở web này) và mở ô bằng:
+
+- **Nhập mã PIN**: nhập số ô tủ → PIN 6 số (`/api/iot/verify-pin` + `/api/iot/unlock`).
+- **Mã QR / Ủy quyền**: dán PIN, QR token (`LLQR...`) hoặc mã ủy quyền —
+  backend tự tra đơn và suy ra ô (`/api/iot/unlock-with-code`).
+- **Gửi đồ mới tại tủ**: đăng nhập OTP email/SĐT rồi tạo đơn ngay trên kiosk.
+
+4 endpoint verify/unlock được gateway mở public (bản thân mã là credential,
+sai mã nhiều lần bị khóa ô tạm thời); phần còn lại của `/api/iot/**` vẫn cần JWT.
+Lệnh mở cửa vẫn đi MQTT → `simulate_demo_cabinet.py` trả lời như tủ thật.
+
+```powershell
+# backend + simulator chạy trước, rồi:
+Set-Location .\ui
+npm install
+npm run dev          # http://localhost:5173 (?lockerId=1 nếu muốn đổi tủ)
+```
+
+Gateway mặc định `http://localhost:18080` — đổi bằng env `VITE_API_URL`.
+
 ## MQTT Notes
 
 Backend `iot-service` currently defaults to a public broker unless overridden by environment/config. For real integration, make sure both sides point to the same broker.
