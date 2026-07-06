@@ -45,13 +45,20 @@ export default function KioskScreen() {
   const [lockerInfo, setLockerInfo] = useState(null);
   const cdRef = useRef(null);
 
-  // Fetch locker info
+  // Fetch locker info + layout. GET /api/lockers/{id} has no box list, so the
+  // cells from /layout become lockerInfo.boxes (PinScreen maps box number -> boxId).
   useEffect(() => {
     if (lockerInfo) return;
     (async () => {
       try {
         const res = await api.getLockerById(LOCKER_ID, jwt || undefined);
-        if (res.success && res.data) setLockerInfo(res.data);
+        if (!res.success || !res.data) return;
+        let boxes = [];
+        try {
+          const lay = await api.getLockerLayout(LOCKER_ID);
+          if (lay.success && Array.isArray(lay.data?.cells)) boxes = lay.data.cells;
+        } catch { /* layout is best-effort */ }
+        setLockerInfo({ ...res.data, boxes });
       } catch { /* ignore */ }
     })();
   }, [jwt]);
@@ -108,7 +115,7 @@ export default function KioskScreen() {
       {screen === 'order-info' && <OrderInfoScreen go={go} back={back} jwt={jwt} services={services} selectedSvcs={selectedSvcs} selectedBox={selectedBox} setOrderId={setOrderId} setOrderPin={setOrderPin} setOrderCode={setOrderCode} setTotalPrice={setTotalPrice} />}
       {screen === 'payment' && <PaymentScreen go={go} goHome={goHome} jwt={jwt} orderId={orderId} orderPin={orderPin} orderCode={orderCode} totalPrice={totalPrice} selectedBox={selectedBox} showSuccess={showSuccess} />}
       {screen === 'pin' && <PinScreen goHome={goHome} showSuccess={showSuccess} lockerInfo={lockerInfo} />}
-      {screen === 'staff' && <StaffScreen goHome={goHome} showSuccess={showSuccess} />}
+      {screen === 'staff' && <StaffScreen goHome={goHome} showSuccess={showSuccess} lockerInfo={lockerInfo} />}
       {screen === 'success' && <SuccessScreen goHome={goHome} title={successTitle} msg={successMsg} extra={successExtra} countdown={countdown} />}
     </div>
   );
@@ -174,7 +181,7 @@ function HomeScreen({ go, lockerInfo }) {
       <div className="home-actions">
         <Btn onClick={() => go('login')}><Package size={20} /> Gửi đồ mới</Btn>
         <Btn variant="secondary" onClick={() => go('pin')}><Hash size={20} /> Nhập mã PIN</Btn>
-        <Btn variant="outline" onClick={() => go('staff')}><ShieldCheck size={20} /> Mã nhân viên</Btn>
+        <Btn variant="outline" onClick={() => go('staff')}><ShieldCheck size={20} /> Mã QR / Ủy quyền</Btn>
       </div>
       <div className="footer">Powered by Laundry Locker IoT</div>
     </div>
@@ -1057,32 +1064,38 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
 // ============================================
 // STAFF
 // ============================================
-function StaffScreen({ goHome, showSuccess }) {
+function StaffScreen({ goHome, showSuccess, lockerInfo }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
 
+  // The backend answers with boxId; the kiosk knows the layout, so show the
+  // human-friendly box number when it can.
+  const boxNumberOf = (boxId) => {
+    const box = lockerInfo?.boxes?.find(b => b.id === boxId);
+    return box ? box.boxNumber : boxId;
+  };
+
   const submitCode = async () => {
-    const accessCode = code.trim().toUpperCase();
+    const accessCode = code.trim();
     if (accessCode.length < 6) {
       setMsg('Vui lòng nhập mã hợp lệ');
       return;
     }
-    
+
     setLoading(true); setMsg('');
     try {
-      console.log('%c[STAFF] Unlocking with access code:', 'color:#fbbf24', accessCode);
+      console.log('%c[CODE] Unlocking with access code:', 'color:#fbbf24', accessCode);
       const res = await api.unlockWithCode(LOCKER_ID, accessCode);
-      if (res.success && res.data?.success) {
-        const boxInfo = res.data.boxes?.map(b => `#${b.boxNumber}`).join(', ') || '';
-        const purpose = res.data.action === 'COLLECT' ? 'Lấy đồ' : res.data.action === 'RETURN' ? 'Trả đồ' : '';
+      if (res.success && res.data?.accepted) {
         setTimeout(() => showSuccess(
           'Đã mở khóa!',
-          res.data.message || 'Mở khóa thành công cho nhân viên.',
+          res.data.message === 'Unlock command accepted'
+            ? 'Hộp đã được mở. Vui lòng đóng cửa khi xong.'
+            : (res.data.message || 'Mở khóa thành công.'),
           {
             orderCode: res.data.orderId ? `Đơn #${res.data.orderId}` : '',
-            boxNumber: boxInfo,
-            purpose
+            boxNumber: res.data.boxId ? boxNumberOf(res.data.boxId) : ''
           }
         ), 500);
       } else {
@@ -1098,26 +1111,25 @@ function StaffScreen({ goHome, showSuccess }) {
 
   return (
     <div className="screen">
-      <Header onBack={goHome} title="Mã nhân viên" />
+      <Header onBack={goHome} title="Mã QR / Ủy quyền" />
       <p className="subtitle" style={{ textAlign: 'center' }}>
-        Nhập mã lấy đồ nhân viên để mở tủ
+        Dán mã QR (LLQR...), mã PIN hoặc mã ủy quyền nhận hộ để mở tủ
       </p>
-      
+
       <div className="form-group" style={{ marginTop: 24, marginBottom: 32 }}>
-        <input 
-          className="input" 
-          value={code} 
+        <input
+          className="input"
+          value={code}
           onChange={e => {
-            setCode(e.target.value.toUpperCase());
+            setCode(e.target.value);
             setMsg('');
           }}
-          placeholder="Ví dụ: 9YYP4JWZ" 
-          style={{ 
-            textAlign: 'center', 
-            fontSize: 24, 
-            letterSpacing: 4, 
-            fontWeight: 700, 
-            textTransform: 'uppercase',
+          placeholder="VD: 123456 hoặc LLQR..."
+          style={{
+            textAlign: 'center',
+            fontSize: 20,
+            letterSpacing: 2,
+            fontWeight: 700,
             padding: '20px'
           }}
           onKeyDown={e => e.key === 'Enter' && submitCode()}
