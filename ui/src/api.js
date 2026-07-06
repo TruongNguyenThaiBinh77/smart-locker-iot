@@ -4,7 +4,8 @@
  *   LOCAL_API    : smart-laundry-locker-iot FastAPI (system state, MQTT logs)
  */
 
-const BACKEND = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// docker-compose maps the gateway to host port 18080 (API_GATEWAY_PORT).
+const BACKEND = import.meta.env.VITE_API_URL || 'http://localhost:18080';
 const LOCAL   = import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:8000';
 
 async function req(base, method, path, body = null, token = null) {
@@ -42,6 +43,9 @@ export const validatePromotionCode = (code, token)        => be('GET', `/api/pro
 
 // ─── Lockers / Boxes ─────────────────────────────────────────
 export const getLockerById     = (lockerId, token)    => be('GET', `/api/lockers/${lockerId}`, null, token);
+// Layout (public GET): cells with id/boxNumber/status/cellType — the kiosk's
+// source of truth for mapping the box number a customer keys in to a boxId.
+export const getLockerLayout   = (lockerId)           => be('GET', `/api/lockers/${lockerId}/layout`);
 export const getAvailableBoxes = (lockerId, token)    => be('GET', `/api/lockers/${lockerId}/boxes/available`, null, token);
 export const getAllBoxes        = (lockerId, token)    => be('GET', `/api/lockers/${lockerId}/boxes`, null, token);
 
