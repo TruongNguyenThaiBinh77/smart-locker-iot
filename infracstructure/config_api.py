@@ -132,6 +132,22 @@ def create_config_app(db_manager, cabinet_state):
             logger.error(f"Failed to clear setup: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    # --- TEST API (Bypass hardware) ---
+    class TestOpenOTPRequest(BaseModel):
+        otp: str
+        lockerId: Optional[str] = None
+        boxId: Optional[str] = None
+
+    @app.post("/test/open-otp")
+    async def test_open_otp(req: TestOpenOTPRequest):
+        logger.warning(f"🚀 MOCK API: Đã nhận mã OTP '{req.otp}' từ mobile để mở tủ (Không dùng linh kiện).")
+        # Giả lập logic kiểm tra và mở khóa
+        return {
+            "success": True,
+            "message": f"Giả lập mở tủ thành công với mã OTP: {req.otp}",
+            "hardwareSimulated": True
+        }
+
     # ─── Static UI Dashboard ───
     _ui_dir = Path(__file__).parent.parent / "ui" / "dist"
     if _ui_dir.exists():

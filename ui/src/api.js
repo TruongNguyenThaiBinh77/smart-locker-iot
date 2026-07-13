@@ -43,6 +43,7 @@ export const validatePromotionCode = (code, token)        => be('GET', `/api/pro
 
 // ─── Lockers / Boxes ─────────────────────────────────────────
 export const getLockerById     = (lockerId, token)    => be('GET', `/api/lockers/${lockerId}`, null, token);
+export const getAllLockers     = (token)              => be('GET', '/api/lockers', null, token);
 // Layout (public GET): cells with id/boxNumber/status/cellType — the kiosk's
 // source of truth for mapping the box number a customer keys in to a boxId.
 export const getLockerLayout   = (lockerId)           => be('GET', `/api/lockers/${lockerId}/layout`);
