@@ -64,13 +64,12 @@ export default function KioskScreen() {
     })();
   }, []);
 
-  // Fetch locker info + layout.
+  // Fetch locker info + layout (with periodic polling for real-time sync)
   useEffect(() => {
     let ignore = false;
-    setLockerInfo(null);
-    if (!activeLockerId) return; // Không gọi API nếu chưa có ID
-    
-    (async () => {
+    if (!activeLockerId) return;
+
+    const fetchLockerData = async () => {
       try {
         const res = await api.getLockerById(activeLockerId, jwt || undefined);
         if (ignore || !res.success || !res.data) return;
@@ -81,8 +80,16 @@ export default function KioskScreen() {
         } catch { /* layout is best-effort */ }
         if (!ignore) setLockerInfo({ ...res.data, boxes });
       } catch { /* ignore */ }
-    })();
-    return () => { ignore = true; };
+    };
+
+    setLockerInfo(null);
+    fetchLockerData();
+    const intervalId = setInterval(fetchLockerData, 3000);
+
+    return () => { 
+      ignore = true; 
+      clearInterval(intervalId); 
+    };
   }, [jwt, activeLockerId]);
 
   // Navigate
