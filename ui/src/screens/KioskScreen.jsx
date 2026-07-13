@@ -127,22 +127,7 @@ export default function KioskScreen() {
 
   return (
     <div className="kiosk-wrap">
-      <div style={{ padding: '10px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 100 }}>
-        <MapPin size={16} color="var(--text-secondary)" />
-        <select 
-          value={activeLockerId} 
-          onChange={e => setActiveLockerId(parseInt(e.target.value, 10))}
-          style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', flex: 1, background: '#fff', fontSize: '14px', outline: 'none' }}
-        >
-          {allLockers.map(loc => (
-            <option key={loc.id} value={loc.id}>
-              {loc.name} - {loc.code}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {screen === 'home' && <HomeScreen go={go} lockerInfo={lockerInfo} />}
+      {screen === 'home' && <HomeScreen go={go} lockerInfo={lockerInfo} activeLockerId={activeLockerId} setActiveLockerId={setActiveLockerId} allLockers={allLockers} />}
       {screen === 'login' && <LoginScreen go={go} goHome={goHome} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone} loginMethod={loginMethod} setLoginMethod={setLoginMethod} />}
       {screen === 'otp' && <OtpScreen go={go} back={back} email={email} setJwt={setJwt} setTempToken={setTempToken} setUserName={setUserName} />}
       {screen === 'phone-otp' && <PhoneOtpScreen go={go} back={back} phone={phone} setJwt={setJwt} setTempToken={setTempToken} setUserName={setUserName} />}
@@ -186,40 +171,61 @@ function Btn({ children, onClick, loading, disabled, variant = 'primary', style,
 // ============================================
 // HOME
 // ============================================
-function HomeScreen({ go, lockerInfo }) {
+function HomeScreen({ go, lockerInfo, activeLockerId, setActiveLockerId, allLockers }) {
   return (
-    <div className="screen">
-      <div className="home-logo">
-        <div className="icon-wrap">
-          <Lock size={40} strokeWidth={2.5} />
-        </div>
-        <h1>Lock.R</h1>
-        <p className="sub">Hệ thống tủ giặt thông minh</p>
-      </div>
-      {lockerInfo && (
-        <div className="locker-info-card">
-          <div className="locker-name">
-            <MapPin size={16} color="var(--accent)" />
-            {lockerInfo.storeName || lockerInfo.name}
+    <div className="screen screen-home-split">
+      <div className="home-left">
+        <div className="home-logo">
+          <div className="icon-wrap">
+            <Lock size={48} strokeWidth={2.5} />
           </div>
-          <div className="locker-address">{lockerInfo.address}</div>
-          {lockerInfo.totalBoxes != null && (
-            <div className="locker-stats">
-              <span className="stat-available"><CheckCircle size={14} style={{ marginRight: 4, verticalAlign: -2 }} />{lockerInfo.availableBoxes ?? '—'} Trống</span>
-              <span className="stat-total">/ {lockerInfo.totalBoxes} ô</span>
-            </div>
-          )}
+          <h1>Lock.R</h1>
+          <p className="sub">Hệ thống tủ giặt thông minh</p>
         </div>
-      )}
-      <div className="home-status">
-        <Wifi size={16} />
-        Kiosk sẵn sàng phục vụ
+        <div className="footer">Powered by Laundry Locker IoT</div>
       </div>
-      <div className="home-actions">
-        <Btn onClick={() => go('staff')}><Unlock size={20} /> Nhập OTP / Quét QR (Mở tủ)</Btn>
-        <Btn variant="secondary" onClick={() => go('login')}><Package size={20} /> Đặt tủ trực tiếp tại Kiosk</Btn>
+
+      <div className="home-right">
+        <div className="home-config">
+          <MapPin size={18} color="var(--accent)" />
+          <select 
+            value={activeLockerId} 
+            onChange={e => setActiveLockerId(parseInt(e.target.value, 10))}
+            className="locker-select"
+          >
+            {allLockers.map(loc => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name} - {loc.code}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {lockerInfo && (
+          <div className="locker-info-card">
+            <div className="locker-name">
+              {lockerInfo.storeName || lockerInfo.name}
+            </div>
+            <div className="locker-address">{lockerInfo.address}</div>
+            {lockerInfo.totalBoxes != null && (
+              <div className="locker-stats">
+                <span className="stat-available"><CheckCircle size={14} style={{ marginRight: 4, verticalAlign: -2 }} />{lockerInfo.availableBoxes ?? '—'} Trống</span>
+                <span className="stat-total">/ {lockerInfo.totalBoxes} ô</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        <div className="home-status">
+          <Wifi size={16} />
+          Kiosk sẵn sàng phục vụ
+        </div>
+
+        <div className="home-actions">
+          <Btn onClick={() => go('staff')}><Unlock size={20} /> Nhập OTP / Quét QR (Mở tủ)</Btn>
+          <Btn variant="secondary" onClick={() => go('login')}><Package size={20} /> Đặt tủ trực tiếp tại Kiosk</Btn>
+        </div>
       </div>
-      <div className="footer">Powered by Laundry Locker IoT</div>
     </div>
   );
 }
