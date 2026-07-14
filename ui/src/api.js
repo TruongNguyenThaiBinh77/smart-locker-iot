@@ -52,6 +52,10 @@ export const getAllBoxes        = (lockerId, token)    => be('GET', `/api/locker
 
 // ─── Orders ──────────────────────────────────────────────────
 export const createOrder       = (token, data)        => be('POST', '/api/orders', data, token);
+// createRentalOrder: dùng endpoint /api/orders/rental — gateway gắn X-User-Id từ JWT
+// → đơn hàng sẽ được liên kết đúng với user, hiển thị trong mobile app
+export const createRentalOrder = (token, data)        => be('POST', '/api/orders/rental', data, token);
+export const mockPaymentCheckout = (token, orderId)   => be('POST', '/api/payments/checkout', { orderId, method: 'CASH' }, token);
 export const confirmOrder      = (token, orderId)     => be('PUT', `/api/orders/${orderId}/confirm`, null, token);
 export const getOrderStatus    = (orderId, token)     => be('GET', `/api/orders/${orderId}/status`, null, token);
 export const getOrderByPin     = (pin, token)         => be('GET', `/api/orders/pin/${pin}`, null, token);

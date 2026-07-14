@@ -5,7 +5,7 @@ import {
   Lock, Package, Smartphone, Mail, ArrowLeft, MapPin,
   CheckCircle, KeyRound, Hash, User, CreditCard,
   Unlock, Home, Loader2, Delete, Circle, ClipboardList,
-  Wifi, ChevronRight, ShieldCheck, X
+  Wifi, ChevronRight, ShieldCheck, X, Banknote
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -35,8 +35,6 @@ export default function KioskScreen() {
   const [tempToken, setTempToken] = useState('');
   const [userName, setUserName] = useState('');
   const [selectedBox, setSelectedBox] = useState(null);
-  const [selectedSvcs, setSelectedSvcs] = useState([]);
-  const [services, setServices] = useState([]);
   const [orderId, setOrderId] = useState(null);
   const [orderPin, setOrderPin] = useState('');
   const [orderCode, setOrderCode] = useState('');
@@ -67,10 +65,9 @@ export default function KioskScreen() {
   // Fetch locker info + layout (with periodic polling for real-time sync)
   useEffect(() => {
     let ignore = false;
-    setLockerInfo(null);
-    if (!activeLockerId) return; // Không gọi API nếu chưa có ID
+    if (!activeLockerId) return;
 
-    (async () => {
+    const fetchLockerData = async () => {
       try {
         const res = await api.getLockerById(activeLockerId, jwt || undefined);
         if (ignore || !res.success || !res.data) return;
@@ -87,9 +84,9 @@ export default function KioskScreen() {
     fetchLockerData();
     const intervalId = setInterval(fetchLockerData, 3000);
 
-    return () => { 
-      ignore = true; 
-      clearInterval(intervalId); 
+    return () => {
+      ignore = true;
+      clearInterval(intervalId);
     };
   }, [jwt, activeLockerId]);
 
@@ -112,7 +109,7 @@ export default function KioskScreen() {
   const goHome = useCallback(() => {
     console.log('%c[NAV] → home (reset)', 'color:#c084fc;font-weight:bold');
     setJwt(''); setEmail(''); setPhone(''); setLoginMethod('phone'); setTempToken(''); setUserName('');
-    setSelectedBox(null); setSelectedSvcs([]); setServices([]); setOrderId(null);
+    setSelectedBox(null); setOrderId(null);
     setOrderPin(''); setOrderCode(''); setTotalPrice(0);
     setScreen('home'); setHistory(['home']);
     if (cdRef.current) clearInterval(cdRef.current);
@@ -141,8 +138,7 @@ export default function KioskScreen() {
       {screen === 'phone-otp' && <PhoneOtpScreen go={go} back={back} phone={phone} setJwt={setJwt} setTempToken={setTempToken} setUserName={setUserName} />}
       {screen === 'register' && <RegisterScreen go={go} goHome={goHome} tempToken={tempToken} setJwt={setJwt} setUserName={setUserName} />}
       {screen === 'boxes' && <BoxSelectionScreen go={go} goHome={goHome} jwt={jwt} userName={userName} selectedBox={selectedBox} setSelectedBox={setSelectedBox} lockerInfo={lockerInfo} activeLockerId={activeLockerId} />}
-      {screen === 'services' && <ServicesScreen go={go} goHome={goHome} jwt={jwt} userName={userName} services={services} setServices={setServices} selectedSvcs={selectedSvcs} setSelectedSvcs={setSelectedSvcs} activeLockerId={activeLockerId} />}
-      {screen === 'order-info' && <OrderInfoScreen go={go} back={back} jwt={jwt} services={services} selectedSvcs={selectedSvcs} selectedBox={selectedBox} setOrderId={setOrderId} setOrderPin={setOrderPin} setOrderCode={setOrderCode} setTotalPrice={setTotalPrice} activeLockerId={activeLockerId} />}
+      {screen === 'order-info' && <OrderInfoScreen go={go} back={back} jwt={jwt} selectedBox={selectedBox} setOrderId={setOrderId} setOrderPin={setOrderPin} setOrderCode={setOrderCode} setTotalPrice={setTotalPrice} activeLockerId={activeLockerId} />}
       {screen === 'payment' && <PaymentScreen go={go} goHome={goHome} jwt={jwt} orderId={orderId} orderPin={orderPin} orderCode={orderCode} totalPrice={totalPrice} selectedBox={selectedBox} showSuccess={showSuccess} activeLockerId={activeLockerId} />}
       {screen === 'pin' && <PinScreen goHome={goHome} showSuccess={showSuccess} lockerInfo={lockerInfo} activeLockerId={activeLockerId} />}
       {screen === 'staff' && <StaffScreen goHome={goHome} showSuccess={showSuccess} lockerInfo={lockerInfo} activeLockerId={activeLockerId} />}
@@ -553,9 +549,9 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
 
       <div className="box-grid">
         {boxes.map(box => {
-          const sel = selectedBox?.id === box.id;
+          const sel = selectedBox?.boxId === box.boxId;
           return (
-            <button key={box.id} onClick={() => setSelectedBox(box)}
+            <button key={box.boxId} onClick={() => setSelectedBox(box)}
               className={`box-item ${sel ? 'selected' : ''}`}>
               <div className="box-icon"><Package size={28} /></div>
               <div className="box-number">Ô {box.boxNumber}</div>
@@ -565,59 +561,9 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
         })}
       </div>
 
-      <Btn onClick={() => go('services')} disabled={!selectedBox}>
-        Tiếp tục <ChevronRight size={18} /> Chọn dịch vụ
+      <Btn onClick={() => go('order-info')} disabled={!selectedBox}>
+        Tiếp tục <ChevronRight size={18} /> Đặt tủ
       </Btn>
-    </div>
-  );
-}
-
-// ============================================
-// SERVICES
-// ============================================
-function ServicesScreen({ go, goHome, jwt, userName, services, setServices, selectedSvcs, setSelectedSvcs, activeLockerId }) {
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let ignore = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await api.getServices(jwt, activeLockerId);
-        if (!ignore && res.success && res.data) setServices(res.data);
-      } catch { /* ignore */ }
-      if (!ignore) setLoading(false);
-    })();
-    return () => { ignore = true; };
-  }, [jwt, setServices]);
-
-  const toggle = (id) => {
-    setSelectedSvcs(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  const fmt = (p) => p != null ? new Intl.NumberFormat('vi-VN').format(p) + 'đ' : '0đ';
-
-  return (
-    <div className="screen">
-      <Header onBack={goHome} title="Chọn dịch vụ" />
-      {userName && <div className="user-info"><User size={16} /> {userName}</div>}
-      <div className="svc-list">
-        {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}><Loader2 size={20} style={{ animation: 'spin 0.6s linear infinite', verticalAlign: -4, marginRight: 8 }} />Đang tải dịch vụ...</p>}
-        {!loading && services.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có dịch vụ</p>}
-        {services.map(svc => (
-          <div key={svc.id} className={`svc-card ${selectedSvcs.includes(svc.id) ? 'selected' : ''}`} onClick={() => toggle(svc.id)}>
-            <div className="svc-check">{selectedSvcs.includes(svc.id) ? <CheckCircle size={16} /> : ''}</div>
-            <div className="svc-info">
-              <div className="svc-name">{svc.name}</div>
-              <div className="svc-price">{fmt(svc.price)} / {svc.unit || 'lần'}</div>
-              {svc.description && <div className="svc-desc">{svc.description}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
-      <Btn onClick={() => go('order-info')} disabled={selectedSvcs.length === 0}>Tiếp tục <ChevronRight size={18} /></Btn>
     </div>
   );
 }
@@ -625,10 +571,9 @@ function ServicesScreen({ go, goHome, jwt, userName, services, setServices, sele
 // ============================================
 // ORDER INFO
 // ============================================
-function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, setOrderId, setOrderPin, setOrderCode, setTotalPrice, activeLockerId }) {
+function OrderInfoScreen({ go, back, jwt, selectedBox, setOrderId, setOrderPin, setOrderCode, setTotalPrice, activeLockerId }) {
   const [note, setNote] = useState('');
-  const [recvName, setRecvName] = useState('');
-  const [recvPhone, setRecvPhone] = useState('');
+  const [hours, setHours] = useState(1);
 
   // Promo states
   const [promoCode, setPromoCode] = useState('');
@@ -641,9 +586,9 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // Calculate pricing
-  const selectedServicesList = services?.filter(s => selectedSvcs.includes(s.id)) || [];
-  const subtotal = selectedServicesList.reduce((sum, s) => sum + s.price, 0);
+  // Tính giá thuê: STANDARD = 5000đ/giờ (theo backend config)
+  const HOURLY_RATE = 5000;
+  const subtotal = hours * HOURLY_RATE;
   const total = Math.max(0, subtotal - promoDiscount);
 
   const handleApplyPromo = async () => {
@@ -660,7 +605,6 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
         if (promo.minOrderAmount && subtotal < promo.minOrderAmount) {
           setPromoError(`Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(promo.minOrderAmount)}đ để áp dụng mã này`);
         } else {
-          // calculate discount
           let discount = 0;
           if (promo.discountType === 'PERCENTAGE') {
             discount = subtotal * promo.discountValue / 100;
@@ -669,7 +613,6 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
             discount = promo.discountValue;
           }
           discount = Math.min(discount, subtotal);
-
           setPromoDetail(promo);
           setPromoDiscount(discount);
           setPromoApplied(true);
@@ -687,63 +630,79 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
     if (!selectedBox) { setMsg('Chưa chọn ô tủ'); return; }
     setLoading(true); setMsg('');
     try {
+      // Dùng POST /api/orders/rental — gateway gắn X-User-Id từ JWT
+      // → đơn hàng liên kết đúng với user, hiển thị trong "Đơn tủ" trên mobile
       const payload = {
-        type: 'STORAGE',
         lockerId: activeLockerId,
-        boxIds: [selectedBox.id],
-        serviceIds: selectedSvcs,
-        customerNote: note || undefined,
-        receiverName: recvName || undefined,
-        receiverPhone: recvPhone || undefined,
+        boxId: selectedBox.boxId,   // LockerBoxSummary.boxId (không phải .id)
+        cellType: 'STANDARD',
+        hours: hours,
+        note: note || undefined,
+        promotionCode: (promoApplied && promoCode.trim()) ? promoCode.trim() : undefined,
       };
-      if (promoApplied && promoCode.trim()) {
-        payload.promotionCode = promoCode.trim();
-      }
 
-      console.log('%c[ORDER] Creating order:', 'color:#fbbf24', payload);
-      const res = await api.createOrder(jwt, payload);
+      console.log('%c[ORDER] Creating RENTAL order via /api/orders/rental:', 'color:#fbbf24', payload);
+      const res = await api.createRentalOrder(jwt, payload);
       if (res.success && res.data) {
         console.log('%c[ORDER] ✅ Created:', 'color:#4ade80', { id: res.data.id, pin: res.data.pinCode, code: res.data.orderCode });
         setOrderId(res.data.id);
         setOrderPin(res.data.pinCode || '');
         setOrderCode(res.data.orderCode || '');
-        setTotalPrice(res.data.totalPrice || 0);
-
-        // Confirm order immediately so it moves to WAITING status (eligible for payment)
-        try {
-          await api.confirmOrder(jwt, res.data.id);
-          console.log('%c[ORDER] ✅ Confirmed order:', 'color:#4ade80', res.data.id);
-        } catch (e) {
-          console.warn('[ORDER] ⚠️ Confirm failed (best-effort):', e);
-        }
-
+        setTotalPrice(res.data.totalPrice ?? total);
         go('payment');
       } else {
-        setMsg(res.data?.message || res.message || 'Lỗi tạo đơn hàng');
+        setMsg(res.data?.message || res.message || 'Lỗi tạo đơn hàng. Vui lòng thử lại.');
       }
-    } catch { setMsg('Lỗi kết nối server'); }
+    } catch (e) {
+      console.error('[ORDER] Error:', e);
+      setMsg('Lỗi kết nối server');
+    }
     setLoading(false);
   };
 
   const fmt = (p) => new Intl.NumberFormat('vi-VN').format(p) + 'đ';
+  const hoursOptions = [1, 2, 3, 4, 6, 8, 12, 24];
 
   return (
     <div className="screen">
-      <Header onBack={back} title="Thông tin đơn hàng" />
+      <Header onBack={back} title="Thông tin đặt tủ" />
+
+      {/* Số giờ thuê */}
       <div className="form-group">
-        <label>Ghi chú (tùy chọn)</label>
-        <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ví dụ: Đồ dễ vỡ, cần cẩn thận..." />
-      </div>
-      <div className="divider" style={{ marginTop: 20 }}>Người nhận (tùy chọn)</div>
-      <div className="form-group">
-        <label>Tên người nhận</label>
-        <input className="input" value={recvName} onChange={e => setRecvName(e.target.value)} placeholder="Để trống nếu tự nhận" />
-      </div>
-      <div className="form-group">
-        <label>Số điện thoại người nhận</label>
-        <input className="input" type="tel" value={recvPhone} onChange={e => setRecvPhone(e.target.value)} placeholder="0901234567" inputMode="tel" />
+        <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>Thời gian thuê tủ</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {hoursOptions.map(h => (
+            <button
+              key={h}
+              onClick={() => setHours(h)}
+              style={{
+                padding: '10px 18px',
+                borderRadius: 12,
+                border: `2px solid ${hours === h ? 'var(--accent)' : 'var(--border)'}`,
+                backgroundColor: hours === h ? 'var(--accent)' : 'transparent',
+                color: hours === h ? '#fff' : 'var(--text-primary)',
+                fontWeight: hours === h ? 700 : 400,
+                cursor: 'pointer',
+                fontSize: 14,
+                transition: 'all 0.15s',
+              }}
+            >
+              {h}h
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+          Giá: {fmt(HOURLY_RATE)}/giờ — Tổng {hours} giờ = <strong style={{ color: 'var(--accent)' }}>{fmt(subtotal)}</strong>
+        </div>
       </div>
 
+      {/* Ghi chú */}
+      <div className="form-group">
+        <label>Ghi chú (tùy chọn)</label>
+        <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ví dụ: Quần áo, cần giữ cẩn thận..." />
+      </div>
+
+      {/* Mã giảm giá */}
       <div className="divider" style={{ marginTop: 20 }}>Mã giảm giá/Ưu đãi</div>
       <div className="form-group">
         <div style={{ display: 'flex', gap: 8 }}>
@@ -764,14 +723,15 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
         {promoError && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}><Circle size={12} fill="#ef4444" color="#ef4444" /> {promoError}</div>}
         {promoApplied && promoDetail && (
           <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12 }}>
-            <div style={{ color: '#166534', fontWeight: 600, fontSize: 14 }}>{promoDetail.title}</div>
+            <div style={{ color: '#166534', fontWeight: 600, fontSize: 14 }}>{promoDetail.title || promoDetail.name}</div>
             <div style={{ color: '#22c55e', fontSize: 13, marginTop: 4 }}>Đã giảm: {fmt(promoDiscount)}</div>
           </div>
         )}
       </div>
 
+      {/* Tổng tiền */}
       <div className="order-sum" style={{ marginTop: 24 }}>
-        <div className="order-row"><span style={{ color: 'var(--text-secondary)' }}>Tạm tính ({selectedServicesList.length} dịch vụ):</span> <strong>{fmt(subtotal)}</strong></div>
+        <div className="order-row"><span style={{ color: 'var(--text-secondary)' }}>Thuê tủ {hours} giờ:</span> <strong>{fmt(subtotal)}</strong></div>
         {promoApplied && promoDiscount > 0 && (
           <div className="order-row"><span style={{ color: '#22c55e' }}>Khuyến mãi:</span> <strong style={{ color: '#ef4444' }}>-{fmt(promoDiscount)}</strong></div>
         )}
@@ -781,11 +741,14 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
         </div>
       </div>
 
-      <Btn onClick={handleCreate} loading={loading} style={{ marginTop: 24 }}><ClipboardList size={18} /> Tạo đơn hàng</Btn>
+      <Btn onClick={handleCreate} loading={loading} style={{ marginTop: 24 }}><ClipboardList size={18} /> Đặt tủ ngay</Btn>
       {msg && <Msg type="error" text={msg} />}
     </div>
   );
 }
+
+
+
 
 // ============================================
 // PAYMENT
@@ -808,20 +771,29 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
 
   const successExtra = { orderCode, orderPin, boxNumber: selectedBox?.boxNumber };
 
-  const confirmAfterUnlock = async () => {
+  // Với RENTAL: confirm order để chuyển sang STORING (bắt buộc với RENTAL flow)
+  const confirmOrder = async () => {
     try {
       await api.confirmOrder(jwt, orderId);
-    } catch { /* best-effort */ }
+      console.log('%c[ORDER] ✅ RENTAL confirmed → STORING', 'color:#4ade80');
+    } catch (e) {
+      console.warn('[ORDER] ⚠️ Confirm failed (best-effort):', e.message);
+    }
   };
 
   const skipPay = async () => {
     setLoading('skip');
-    console.log('%c[UNLOCK] Skip pay → unlock box:', 'color:#fbbf24', { pin: orderPin, boxId: selectedBox?.id });
+    console.log('%c[UNLOCK] Skip pay → unlock box (RENTAL DROP_OFF):', 'color:#fbbf24', { pin: orderPin, boxId: selectedBox?.boxId });
     try {
-      const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.id, 'DROP_OFF');
+      // Gọi checkout tiền mặt (mock) để order được đánh dấu PAID trước khi confirm
+      await api.mockPaymentCheckout(jwt, orderId).catch(() => {});
+      
+      const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
       if (res.success || res.data?.success) {
-        await confirmAfterUnlock();
-        showSuccess('Tủ đã mở!', 'Vui lòng gửi đồ vào box và đóng cửa.', successExtra);
+        await confirmOrder(); // chuyển RENTAL sang STORING
+        showSuccess('Tủ đã mở!',
+          `Vui lòng đặt đồ vào ô tủ và đóng cửa. Dùng mã PIN ${orderPin} để mở lại tủ khi lấy đồ.`,
+          successExtra);
       } else {
         setMsg(res.data?.message || res.message || 'Lỗi mở tủ');
       }
@@ -866,10 +838,12 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
     setLoading('open');
     if (pollRef.current) { clearInterval(pollRef.current); setPolling(false); }
     try {
-      const res = await api.unlockBox(LOCKER_ID, orderPin, selectedBox?.id, 'DROP_OFF');
+      const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
       if (res.success || res.data?.success) {
-        await confirmAfterUnlock();
-        showSuccess('Thanh toán thành công!', 'Tủ đã mở. Vui lòng gửi đồ vào và đóng cửa.', successExtra);
+        await confirmOrder(); // chuyển RENTAL sang STORING
+        showSuccess('Thanh toán thành công!',
+          `Tủ đã mở. Vui lòng đặt đồ vào ô #${selectedBox?.boxNumber} và đóng cửa. PIN: ${orderPin}`,
+          successExtra);
       } else {
         setMsg(res.data?.message || res.message || 'Lỗi mở tủ');
       }
@@ -892,9 +866,9 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
             <Btn onClick={() => payOnline('MOMO')} loading={loading === 'MOMO'}>
               <Smartphone size={18} /> Thanh toán MoMo & Mở tủ
             </Btn>
-            <div className="divider" style={{ margin: '4px 0' }}>Hoặc</div>
+            <div className="divider" style={{ margin: '4px 0' }}>Hoặc (Demo)</div>
             <Btn variant="secondary" onClick={skipPay} loading={loading === 'skip'}>
-              <Unlock size={18} /> Mở tủ trước — Thanh toán sau
+              <Banknote size={18} /> Thanh toán Tiền mặt (Demo)
             </Btn>
             <Btn variant="outline" onClick={() => payOnline('VNPAY')} loading={loading === 'VNPAY'}>
               <CreditCard size={18} /> Thanh toán VNPay
@@ -1008,11 +982,11 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
 
     setLoading(true);
     try {
-      console.log('%c[PIN] Verifying PIN for box:', 'color:#fbbf24', selectedBox.id, code);
-      const verifyRes = await api.verifyPin(code, selectedBox.id);
+      console.log('%c[PIN] Verifying PIN for box:', 'color:#fbbf24', selectedBox.boxId, code);
+      const verifyRes = await api.verifyPin(code, selectedBox.boxId);
 
       if (verifyRes.success && verifyRes.data?.valid) {
-        const unlockRes = await api.unlockBox(activeLockerId, code, selectedBox.id, 'PICKUP');
+        const unlockRes = await api.unlockBox(activeLockerId, code, selectedBox.boxId, 'PICKUP');
         if (unlockRes.success || unlockRes.data?.success) {
           setPinState('success');
           const oCode = verifyRes.data?.orderCode || unlockRes.data?.orderCode || '';
@@ -1209,39 +1183,60 @@ function StaffScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
 }
 
 // ============================================
-// SUCCESS
+// SUCCESS SCREEN (Redesigned)
 // ============================================
 function SuccessScreen({ goHome, title, msg, extra, countdown }) {
   return (
-    <div className="screen">
-      <div className="success-box">
-        <div className="icon-wrap">
-          <CheckCircle size={48} strokeWidth={2} />
-        </div>
-        <h2>{title}</h2>
-        <p>{msg}</p>
+    <div className="screen success-screen" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', background: 'radial-gradient(circle at 50% 30%, rgba(52, 211, 153, 0.1) 0%, var(--bg) 70%)' }}>
+      <div className="success-icon-wrap" style={{ 
+        width: 100, height: 100, marginBottom: 24, 
+        background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', 
+        color: '#fff', boxShadow: '0 12px 32px rgba(16, 185, 129, 0.3)',
+        border: 'none'
+      }}>
+        <CheckCircle size={56} strokeWidth={2.5} />
       </div>
+      
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>{title}</h2>
+      <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 400, lineHeight: 1.5 }}>{msg}</p>
+
       {extra && (
-        <div className="extra-card">
+        <div className="extra-card" style={{ 
+          marginTop: 32, width: '100%', maxWidth: 440, padding: '24px',
+          background: '#fff', borderRadius: 20, border: '1px solid var(--border)',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.06)', gap: 16
+        }}>
           {extra.orderCode && (
-            <div className="extra-row">
-              <ClipboardList size={16} color="var(--accent)" /> Mã đơn: <strong>{extra.orderCode}</strong>
-            </div>
-          )}
-          {extra.orderPin && (
-            <div className="extra-row pin-highlight">
-              <KeyRound size={16} /> Mã PIN lấy đồ: <strong>{extra.orderPin}</strong>
+            <div className="extra-row" style={{ justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: 12 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Mã đơn hàng:</span>
+              <strong style={{ fontSize: 16 }}>{extra.orderCode}</strong>
             </div>
           )}
           {extra.boxNumber && (
-            <div className="extra-row">
-              <Package size={16} color="var(--text-secondary)" /> Ô tủ: <strong>#{extra.boxNumber}</strong>
+            <div className="extra-row" style={{ justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: 12 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Ô tủ của bạn:</span>
+              <strong style={{ fontSize: 20, color: 'var(--accent)' }}>#{extra.boxNumber}</strong>
+            </div>
+          )}
+          {extra.orderPin && (
+            <div className="extra-row" style={{ justifyContent: 'space-between', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Mã PIN để mở tủ lấy đồ:</span>
+              <div style={{ 
+                background: 'var(--accent-dim)', padding: '12px 24px', 
+                borderRadius: 12, border: '2px dashed rgba(59, 130, 246, 0.4)',
+                fontSize: 28, fontWeight: 800, color: 'var(--accent)', letterSpacing: 4
+              }}>
+                {extra.orderPin}
+              </div>
             </div>
           )}
         </div>
       )}
-      <div className="countdown">Về trang chủ sau {countdown}s</div>
-      <Btn variant="secondary" onClick={goHome} style={{ marginTop: 20 }}><Home size={18} /> Về trang chủ</Btn>
+
+      <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, width: '100%', maxWidth: 320 }}>
+        <Btn onClick={goHome} variant="primary" style={{ height: 56, fontSize: 18 }}><Home size={20} /> Về trang chủ</Btn>
+        <p className="countdown" style={{ fontSize: 14 }}>Tự động đóng sau <strong>{countdown}</strong> giây</p>
+      </div>
     </div>
   );
 }
