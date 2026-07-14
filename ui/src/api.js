@@ -59,6 +59,7 @@ export const mockPaymentCheckout = (token, orderId)   => be('POST', '/api/paymen
 export const confirmOrder      = (token, orderId)     => be('PUT', `/api/orders/${orderId}/confirm`, null, token);
 export const getOrderStatus    = (orderId, token)     => be('GET', `/api/orders/${orderId}/status`, null, token);
 export const getOrderByPin     = (pin, token)         => be('GET', `/api/orders/pin/${pin}`, null, token);
+export const getMyOrders       = (token)              => be('GET', '/api/orders/my-orders', null, token);
 
 // ─── Payments ────────────────────────────────────────────────
 export const createPayment     = (token, orderId, method) => be('POST', '/api/payments/create', { orderId, paymentMethod: method }, token);
@@ -67,6 +68,7 @@ export const createPayment     = (token, orderId, method) => be('POST', '/api/pa
 export const verifyPin         = (pinCode, boxId)     => be('POST', '/api/iot/verify-pin', { pinCode, boxId });
 export const unlockBox         = (lockerId, pinCode, boxId, actionType) => be('POST', '/api/iot/unlock', { lockerId, pinCode, boxId, actionType });
 export const unlockWithCode    = (lockerId, accessCode)         => be('POST', '/api/iot/unlock-with-code', { lockerId, code: accessCode });
+export const pickupOrder       = (token, orderId)     => be('POST', '/api/iot/pickup', { orderId }, token);
 
 // ─── Local FastAPI (IoT Gateway) ─────────────────────────────
 export const getSystemInfo     = ()                   => loc('GET', '/system/info');

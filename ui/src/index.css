@@ -559,3 +559,22 @@ html, body, #root {
   color: var(--text-muted); font-size: 12px; margin: 12px 0;
 }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Manage Box Actions */
+.box-item.yours { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); opacity: 1; cursor: pointer; }
+.box-item.yours .box-icon { color: var(--accent); }
+.manage-box-modal { text-align: center; max-width: 340px; }
+.qr-container { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 16px; margin-top: 4px; }
+.pin-code-display { display: flex; gap: 6px; font-size: 20px; font-weight: 800; font-family: monospace; letter-spacing: 2px; background: rgba(0,0,0,0.05); padding: 6px 14px; border-radius: 8px; color: var(--text-primary); }
+.manage-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* Modal Base Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; z-index: 1000; padding: 40px 16px; overflow-y: auto; }
+.modal-content { background: var(--bg-card, #fff); border-radius: 18px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); position: relative; width: 100%; max-width: 340px; margin: auto; }
+.close-btn { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 50%; transition: all 0.2s; display: flex; align-items: center; justify-content: center; z-index: 10; }
+.close-btn:hover { background: rgba(0,0,0,0.05); color: var(--text-primary); }
+
+.manage-actions .btn { justify-content: flex-start; padding-left: 20px; font-weight: 600; font-size: 14px; border-radius: 12px; min-height: 44px; margin-bottom: 0 !important; }
+.manage-actions .btn svg { margin-right: 8px; opacity: 0.8; }
+.manage-box-modal h3 { font-size: 16px; color: var(--text-primary); margin-top: 0 !important; margin-bottom: 8px !important; padding-right: 24px; }
+

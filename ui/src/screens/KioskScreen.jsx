@@ -5,7 +5,8 @@ import {
   Lock, Package, Smartphone, Mail, ArrowLeft, MapPin,
   CheckCircle, KeyRound, Hash, User, CreditCard,
   Unlock, Home, Loader2, Delete, Circle, ClipboardList,
-  Wifi, ChevronRight, ShieldCheck, X, Banknote
+  Wifi, ChevronRight, ShieldCheck, X, Banknote,
+  Clock, LogOut, Users, AlertTriangle, Plane, Luggage
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -493,32 +494,104 @@ function RegisterScreen({ go, goHome, tempToken, setJwt, setUserName }) {
 // ============================================
 function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelectedBox, lockerInfo, activeLockerId }) {
   const [boxes, setBoxes] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  
+  // Manage Box State
+  const [manageBox, setManageBox] = useState(null); // { box, order }
+  const [manageLoading, setManageLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setMsg('');
+    try {
+      const [boxesRes, ordersRes, layoutRes] = await Promise.all([
+        api.getAllBoxes(activeLockerId, jwt),
+        jwt ? api.getMyOrders(jwt) : Promise.resolve({ success: true, data: [] }),
+        api.getLockerLayout(activeLockerId)
+      ]);
+      
+      if (boxesRes.success && Array.isArray(boxesRes.data)) {
+        let mergedBoxes = boxesRes.data;
+        if (layoutRes.success && Array.isArray(layoutRes.data?.cells)) {
+          mergedBoxes = mergedBoxes.map(b => {
+             const cell = layoutRes.data.cells.find(c => c.boxNumber === b.boxNumber);
+             return { ...b, cellType: cell?.cellType };
+          });
+        }
+        setBoxes(mergedBoxes);
+      } else {
+        setMsg(boxesRes.message || 'Lỗi tải danh sách ô tủ');
+      }
+      
+      if (ordersRes.success && Array.isArray(ordersRes.data)) {
+        setMyOrders(ordersRes.data);
+      }
+    } catch (e) {
+      setMsg('Lỗi kết nối máy chủ');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeLockerId, jwt]);
 
   useEffect(() => {
     let ignore = false;
-    (async () => {
-      setLoading(true); setMsg('');
-      console.log('%c[BOX] Loading all boxes for locker:', 'color:#fbbf24', activeLockerId);
-      try {
-        const res = await api.getAllBoxes(activeLockerId, jwt);
-        if (!ignore && res.success && res.data) {
-          setBoxes(res.data);
-          console.log('%c[BOX] All boxes:', 'color:#4ade80', res.data.length, res.data);
-          const hasAvailable = res.data.some(b => b.status === 'AVAILABLE');
-          if (!hasAvailable) setMsg('Không có ô tủ trống');
-        } else if (!ignore) {
-          setMsg(res.message || 'Lỗi tải danh sách ô tủ');
-        }
-      } catch { if (!ignore) setMsg('Lỗi kết nối server'); }
-      if (!ignore) setLoading(false);
-    })();
+    fetchData().then(() => {
+      if (ignore) return;
+    });
     return () => { ignore = true; };
-  }, []);
+  }, [fetchData]);
+
+  // Handle Box Click
+  const handleBoxClick = (box, isAvail, myOrder) => {
+    if (myOrder) {
+      setManageBox({ box, order: myOrder });
+    } else if (isAvail) {
+      setSelectedBox(box);
+    }
+  };
+
+  const unlockManageBox = async () => {
+    setManageLoading(true);
+    try {
+      const unlockRes = await api.pickupOrder(manageBox.order.orderId || manageBox.order.id, manageBox.order.pinCode, jwt);
+      if (unlockRes.success) {
+        alert(unlockRes.data?.message || 'Hộp đã được mở. Vui lòng đóng cửa khi lấy đồ xong.');
+      } else {
+        alert(unlockRes.message || 'Lỗi mở hộp');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối máy chủ');
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  const endManageBox = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn trả ô tủ? Hành động này không thể hoàn tác.')) return;
+    setManageLoading(true);
+    try {
+      const unlockRes = await api.pickupOrder(manageBox.order.orderId || manageBox.order.id, manageBox.order.pinCode, jwt);
+      if (unlockRes.success) {
+        alert('Đã kết thúc thuê! Cửa tủ đang mở, hãy lấy đồ và đóng cửa lại.');
+        setManageBox(null);
+        fetchData();
+      } else {
+        alert(unlockRes.message || 'Lỗi trả ô tủ');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối máy chủ');
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  const notImplemented = () => {
+    alert('Tính năng này trên Kiosk đang được hoàn thiện. Vui lòng sử dụng Mobile App để tiếp tục thao tác.');
+  };
 
   // Tính số ô trống hiện tại để hiển thị
-  const availableCount = (lockerInfo?.boxes || boxes).filter(b => b.status === 'AVAILABLE').length;
+  const availableCount = boxes.filter(b => b.status === 'AVAILABLE').length;
 
   return (
     <div className="screen">
@@ -552,25 +625,36 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
       {msg && !loading && <Msg type="error" text={msg} />}
 
       <div className="box-grid">
-        {(lockerInfo?.boxes?.map(b => ({ boxId: b.id || b.boxId, boxNumber: b.boxNumber, status: b.status })) || boxes).map(box => {
-          const isAvail = box.status === 'AVAILABLE';
-          const isRented = box.status === 'RENTED' || box.status === 'OCCUPIED' || box.status === 'STORING';
-          const isBooked = box.status === 'BOOKED' || box.status === 'RESERVED';
-          const isOffline = box.status === 'OFFLINE' || box.status === 'MAINTENANCE' || box.status === 'FAULT';
+        {(lockerInfo?.boxes?.map(b => ({ boxId: b.id || b.boxId, boxNumber: b.boxNumber, status: b.status, type: b.cellType })) || boxes).map(box => {
+          const myOrder = myOrders.find(o => o.sendBoxId === box.boxId);
           
           let statusText = 'Trống';
           let boxClass = 'available';
-          if (isRented) { statusText = 'Đang dùng'; boxClass = 'rented'; }
-          else if (isBooked) { statusText = 'Đã đặt'; boxClass = 'booked'; }
-          else if (isOffline) { statusText = 'Lỗi'; boxClass = 'offline'; }
+          const isAvail = box.status === 'AVAILABLE';
+          
+          if (myOrder) {
+            statusText = 'Ô của bạn';
+            boxClass = 'yours';
+          } else {
+            const isRented = box.status === 'RENTED' || box.status === 'OCCUPIED' || box.status === 'STORING';
+            const isBooked = box.status === 'BOOKED' || box.status === 'RESERVED';
+            const isOffline = box.status === 'OFFLINE' || box.status === 'MAINTENANCE' || box.status === 'FAULT';
+            
+            if (isRented) { statusText = 'Đang dùng'; boxClass = 'rented'; }
+            else if (isBooked) { statusText = 'Đã đặt'; boxClass = 'booked'; }
+            else if (isOffline) { statusText = 'Lỗi'; boxClass = 'offline'; }
+          }
 
           const sel = selectedBox?.boxId === box.boxId;
+          const BoxIcon = box.cellType === 'DRONE' || box.type === 'DRONE' ? Plane : 
+                          box.cellType === 'LUGGAGE' || box.type === 'LUGGAGE' ? Luggage : Package;
+
           return (
             <button key={box.boxId} 
-              onClick={() => isAvail && setSelectedBox(box)}
-              disabled={!isAvail}
+              onClick={() => handleBoxClick(box, isAvail, myOrder)}
+              disabled={!isAvail && !myOrder}
               className={`box-item ${boxClass} ${sel ? 'selected' : ''}`}>
-              <div className="box-icon"><Package size={28} /></div>
+              <div className="box-icon"><BoxIcon size={28} /></div>
               <div className="box-number">Ô {box.boxNumber}</div>
               <div className="box-status">{statusText}</div>
             </button>
@@ -581,6 +665,31 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
       <Btn onClick={() => go('order-info')} disabled={!selectedBox}>
         Tiếp tục <ChevronRight size={18} /> Đặt tủ
       </Btn>
+
+      {/* MANAGE BOX MODAL */}
+      {manageBox && (
+        <div className="modal-overlay">
+          <div className="modal-content manage-box-modal">
+            <button className="close-btn" onClick={() => setManageBox(null)} disabled={manageLoading}><X size={20}/></button>
+            <h3 style={{marginTop: 8, marginBottom: 12}}>Quản lý Ô tủ #{manageBox.box.boxNumber}</h3>
+            <div className="qr-container">
+               <QRCodeSVG value={manageBox.order.qrToken || 'qr-placeholder'} size={110} />
+               <div className="pin-code-display">
+                 {manageBox.order.pinCode.split('').map((char, i) => <span key={i}>{char}</span>)}
+               </div>
+               <p style={{fontSize: 12, color: 'var(--text-muted)'}}>Mã PIN / QR mở tủ của bạn</p>
+            </div>
+            
+            <div className="manage-actions">
+               <Btn onClick={unlockManageBox} disabled={manageLoading} style={{marginBottom: 8}}><Unlock size={18}/> Mở tủ</Btn>
+               <Btn onClick={notImplemented} variant="secondary" disabled={manageLoading}><Clock size={18}/> Gia hạn thuê</Btn>
+               <Btn onClick={endManageBox} variant="secondary" disabled={manageLoading}><LogOut size={18}/> Kết thúc thuê & trả ô</Btn>
+               <Btn onClick={notImplemented} variant="secondary" disabled={manageLoading}><Users size={18}/> Ủy quyền người khác lấy hộ</Btn>
+               <Btn onClick={notImplemented} variant="secondary" disabled={manageLoading}><AlertTriangle size={18}/> Báo ô lỗi</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
