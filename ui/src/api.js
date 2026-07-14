@@ -34,7 +34,7 @@ const loc = (m, p, b, t) => req(LOCAL,   m, p, b, t);
 // ─── Auth ────────────────────────────────────────────────────
 export const sendOtp           = (email)              => be('POST', '/api/auth/email/send-otp', { email });
 export const verifyOtp         = (email, otp)         => be('POST', '/api/auth/email/verify-otp', { email, otp });
-export const phoneLogin        = (idToken)            => be('POST', '/api/auth/phone-login', { idToken });
+export const phoneLogin        = (idToken)            => be('POST', '/api/auth/firebase', { idToken });
 export const kioskQuickRegister= (tempToken)          => be('POST', '/api/auth/kiosk/quick-register', { tempToken });
 
 // ─── Services / Promotions ───────────────────────────────────

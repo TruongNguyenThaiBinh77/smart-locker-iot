@@ -412,8 +412,22 @@ html, body, #root {
   color: var(--text-primary); transform: translateY(-6px) scale(1.02); box-shadow: 0 16px 32px rgba(59,130,246,0.3), inset 0 2px 0 rgba(255,255,255,0.2); 
 }
 .box-number { font-weight: 800; font-size: 18px; margin-top: 4px; }
-.box-status { font-size: 12px; font-weight: 600; background: rgba(52,211,153,0.15); color: var(--success); padding: 2px 8px; border-radius: 12px; }
+.box-status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
 
+/* Status specific */
+.box-item.available .box-status { background: rgba(56,189,248,0.15); color: #0284c7; }
+.box-item.rented .box-status { background: rgba(245,158,11,0.15); color: #d97706; }
+.box-item.booked .box-status { background: rgba(139,92,246,0.15); color: #7c3aed; }
+.box-item.offline .box-status { background: rgba(239,68,68,0.15); color: #dc2626; }
+
+.box-item.rented { border-color: rgba(245,158,11,0.3); opacity: 0.85; cursor: not-allowed; }
+.box-item.booked { border-color: rgba(139,92,246,0.3); opacity: 0.85; cursor: not-allowed; }
+.box-item.offline { border-color: rgba(239,68,68,0.3); opacity: 0.6; filter: grayscale(1); cursor: not-allowed; }
+.box-item.available { border-color: rgba(56,189,248,0.4); }
+.box-item.available .box-icon { color: #38bdf8; }
+.box-item.rented .box-icon { color: #f59e0b; }
+.box-item.booked .box-icon { color: #8b5cf6; }
+.box-item.offline .box-icon { color: #ef4444; }
 /* ─── Service Cards ─────────────────────────────────────── */
 .svc-list { display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; max-height: 320px; padding: 4px; }
 .svc-card {
