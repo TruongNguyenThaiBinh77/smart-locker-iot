@@ -69,7 +69,7 @@ export default function KioskScreen() {
     let ignore = false;
     setLockerInfo(null);
     if (!activeLockerId) return; // Không gọi API nếu chưa có ID
-    
+
     (async () => {
       try {
         const res = await api.getLockerById(activeLockerId, jwt || undefined);
@@ -180,16 +180,16 @@ function HomeScreen({ go, lockerInfo, activeLockerId, setActiveLockerId, allLock
             <Lock size={48} strokeWidth={2.5} />
           </div>
           <h1>Lock.R</h1>
-          <p className="sub">Hệ thống tủ giặt thông minh</p>
+          <p className="sub">Hệ thống tủ thông minh</p>
         </div>
-        <div className="footer">Powered by Laundry Locker IoT</div>
+        <div className="footer">Powered by Locker IoT</div>
       </div>
 
       <div className="home-right">
         <div className="home-config">
           <MapPin size={18} color="var(--accent)" />
-          <select 
-            value={activeLockerId} 
+          <select
+            value={activeLockerId}
             onChange={e => setActiveLockerId(parseInt(e.target.value, 10))}
             className="locker-select"
           >
@@ -215,7 +215,7 @@ function HomeScreen({ go, lockerInfo, activeLockerId, setActiveLockerId, allLock
             )}
           </div>
         )}
-        
+
         <div className="home-status">
           <Wifi size={16} />
           Kiosk sẵn sàng phục vụ
@@ -748,12 +748,12 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
               {promoLoading ? <Loader2 size={18} className="spinner" /> : 'Áp dụng'}
             </button>
           ) : (
-             <button className="btn btn-secondary" onClick={() => { setPromoCode(''); setPromoApplied(false); setPromoDiscount(0); }} style={{ width: 'auto', padding: '0 20px', borderRadius: 12, backgroundColor: '#f1f5f9', color: '#64748b' }}>
-               <X size={18} /> Gỡ bỏ
-             </button>
+            <button className="btn btn-secondary" onClick={() => { setPromoCode(''); setPromoApplied(false); setPromoDiscount(0); }} style={{ width: 'auto', padding: '0 20px', borderRadius: 12, backgroundColor: '#f1f5f9', color: '#64748b' }}>
+              <X size={18} /> Gỡ bỏ
+            </button>
           )}
         </div>
-        {promoError && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}><Circle size={12} fill="#ef4444" color="#ef4444"/> {promoError}</div>}
+        {promoError && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}><Circle size={12} fill="#ef4444" color="#ef4444" /> {promoError}</div>}
         {promoApplied && promoDetail && (
           <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12 }}>
             <div style={{ color: '#166534', fontWeight: 600, fontSize: 14 }}>{promoDetail.title}</div>
@@ -768,7 +768,7 @@ function OrderInfoScreen({ go, back, jwt, services, selectedSvcs, selectedBox, s
           <div className="order-row"><span style={{ color: '#22c55e' }}>Khuyến mãi:</span> <strong style={{ color: '#ef4444' }}>-{fmt(promoDiscount)}</strong></div>
         )}
         <div className="order-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Tổng cộng:</span> 
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Tổng cộng:</span>
           <strong style={{ fontSize: 20, color: 'var(--accent)' }}>{fmt(total)}</strong>
         </div>
       </div>
@@ -872,71 +872,73 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
   return (
     <div className="screen">
       <Header onBack={goHome} title="Thanh toán" />
-      <div className="order-sum">
-        <div className="order-row"><ClipboardList size={16} /> Mã đơn: <strong>{orderCode}</strong></div>
-        <div className="order-row"><KeyRound size={16} /> PIN: <strong>{orderPin}</strong></div>
-        <div className="order-row"><CreditCard size={16} /> Tổng: <strong>{fmt(totalPrice)}</strong></div>
-        {selectedBox && <div className="order-row"><Package size={16} /> Ô tủ: <strong>#{selectedBox.boxNumber}</strong></div>}
-      </div>
-      {!payUrl && (
-        <>
-          <Btn onClick={() => payOnline('MOMO')} loading={loading === 'MOMO'} style={{ marginBottom: 12 }}>
-            <Smartphone size={18} /> Thanh toán MoMo & Mở tủ
-          </Btn>
-          <div className="divider">Hoặc</div>
-          <Btn variant="secondary" onClick={skipPay} loading={loading === 'skip'} style={{ marginBottom: 10 }}>
-            <Unlock size={18} /> Mở tủ trước — Thanh toán sau
-          </Btn>
-          <Btn variant="outline" onClick={() => payOnline('VNPAY')} loading={loading === 'VNPAY'}>
-            <CreditCard size={18} /> Thanh toán VNPay
-          </Btn>
-        </>
-      )}
-
-      {/* MoMo QR Payment Section */}
-      {payUrl && payMethod === 'MOMO' && (
-        <div className="momo-pay-section">
-          <div className="momo-header">
-            <Smartphone size={20} color="#A50064" />
-            <span>Thanh toán MoMo</span>
+      <div style={{ maxWidth: 500, margin: '0 auto', width: '100%' }}>
+        <div className="order-sum" style={{ marginBottom: 24 }}>
+          <div className="order-row"><ClipboardList size={16} /> Mã đơn: <strong>{orderCode}</strong></div>
+          <div className="order-row"><KeyRound size={16} /> PIN: <strong>{orderPin}</strong></div>
+          <div className="order-row"><CreditCard size={16} /> Tổng: <strong>{fmt(totalPrice)}</strong></div>
+          {selectedBox && <div className="order-row"><Package size={16} /> Ô tủ: <strong>#{selectedBox.boxNumber}</strong></div>}
+        </div>
+        {!payUrl && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Btn onClick={() => payOnline('MOMO')} loading={loading === 'MOMO'}>
+              <Smartphone size={18} /> Thanh toán MoMo & Mở tủ
+            </Btn>
+            <div className="divider" style={{ margin: '4px 0' }}>Hoặc</div>
+            <Btn variant="secondary" onClick={skipPay} loading={loading === 'skip'}>
+              <Unlock size={18} /> Mở tủ trước — Thanh toán sau
+            </Btn>
+            <Btn variant="outline" onClick={() => payOnline('VNPAY')} loading={loading === 'VNPAY'}>
+              <CreditCard size={18} /> Thanh toán VNPay
+            </Btn>
           </div>
-          {qrCodeUrl && (
-            <div className="momo-qr" style={{ padding: 16, background: '#fff', borderRadius: 12, margin: '16px auto', width: 'fit-content' }}>
-              <p className="momo-qr-label" style={{ marginBottom: 16 }}>Quét mã QR bằng ứng dụng MoMo</p>
-              <QRCodeSVG value={qrCodeUrl} size={160} />
-            </div>
-          )}
-          {deeplink && (
-            <a href={deeplink} target="_blank" rel="noreferrer" className="btn btn-momo" style={{ marginTop: 12 }}>
-              <Smartphone size={18} /> Mở ứng dụng MoMo
-            </a>
-          )}
-          {!qrCodeUrl && (
-            <div className="pay-link">
-              <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>Mở link để thanh toán MoMo:</p>
-              <a href={payUrl} target="_blank" rel="noreferrer">{payUrl}</a>
-            </div>
-          )}
-          {polling && <p className="polling-status"><Loader2 size={14} style={{ animation: 'spin 0.6s linear infinite' }} />Đang chờ xác nhận thanh toán...</p>}
-        </div>
-      )}
+        )}
 
-      {/* VNPay / Generic Payment Section */}
-      {payUrl && payMethod === 'VNPAY' && (
-        <div className="pay-link">
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}><CreditCard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Mở link để thanh toán VNPay:</p>
-          <a href={payUrl} target="_blank" rel="noreferrer">{payUrl}</a>
-          {polling && <p className="polling-status"><Loader2 size={14} style={{ animation: 'spin 0.6s linear infinite' }} />Đang chờ xác nhận thanh toán...</p>}
-          {!polling && <p>Sau khi thanh toán xong, nhấn nút bên dưới.</p>}
-        </div>
-      )}
+        {/* MoMo QR Payment Section */}
+        {payUrl && payMethod === 'MOMO' && (
+          <div className="momo-pay-section">
+            <div className="momo-header">
+              <Smartphone size={20} color="#A50064" />
+              <span>Thanh toán MoMo</span>
+            </div>
+            {qrCodeUrl && (
+              <div className="momo-qr" style={{ padding: 16, background: '#fff', borderRadius: 12, margin: '16px auto', width: 'fit-content' }}>
+                <p className="momo-qr-label" style={{ marginBottom: 16 }}>Quét mã QR bằng ứng dụng MoMo</p>
+                <QRCodeSVG value={qrCodeUrl} size={160} />
+              </div>
+            )}
+            {deeplink && (
+              <a href={deeplink} target="_blank" rel="noreferrer" className="btn btn-momo" style={{ marginTop: 12 }}>
+                <Smartphone size={18} /> Mở ứng dụng MoMo
+              </a>
+            )}
+            {!qrCodeUrl && (
+              <div className="pay-link">
+                <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>Mở link để thanh toán MoMo:</p>
+                <a href={payUrl} target="_blank" rel="noreferrer">{payUrl}</a>
+              </div>
+            )}
+            {polling && <p className="polling-status"><Loader2 size={14} style={{ animation: 'spin 0.6s linear infinite' }} />Đang chờ xác nhận thanh toán...</p>}
+          </div>
+        )}
 
-      {payUrl && (
-        <Btn onClick={openAfterPay} loading={loading === 'open'} style={{ marginTop: 12 }}>
-          <Unlock size={18} /> Đã thanh toán — Mở tủ
-        </Btn>
-      )}
-      {msg && <Msg type="error" text={msg} />}
+        {/* VNPay / Generic Payment Section */}
+        {payUrl && payMethod === 'VNPAY' && (
+          <div className="pay-link">
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}><CreditCard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Mở link để thanh toán VNPay:</p>
+            <a href={payUrl} target="_blank" rel="noreferrer">{payUrl}</a>
+            {polling && <p className="polling-status"><Loader2 size={14} style={{ animation: 'spin 0.6s linear infinite' }} />Đang chờ xác nhận thanh toán...</p>}
+            {!polling && <p>Sau khi thanh toán xong, nhấn nút bên dưới.</p>}
+          </div>
+        )}
+
+        {payUrl && (
+          <Btn onClick={openAfterPay} loading={loading === 'open'} style={{ marginTop: 16 }}>
+            <Unlock size={18} /> Đã thanh toán — Mở tủ
+          </Btn>
+        )}
+        {msg && <Msg type="error" text={msg} />}
+      </div>
     </div>
   );
 }
@@ -1041,16 +1043,16 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
           Nhập <strong>Số Ô Tủ</strong> của bạn
         </p>
         <div className="form-group" style={{ marginTop: 24, marginBottom: 32 }}>
-          <input 
-            className="input" 
-            value={boxNum} 
+          <input
+            className="input"
+            value={boxNum}
             readOnly
-            placeholder="VD: 12" 
-            style={{ 
-              textAlign: 'center', 
-              fontSize: 32, 
-              letterSpacing: 4, 
-              fontWeight: 700, 
+            placeholder="VD: 12"
+            style={{
+              textAlign: 'center',
+              fontSize: 32,
+              letterSpacing: 4,
+              fontWeight: 700,
               padding: '20px',
               backgroundColor: '#f8fafc',
               border: '2px solid var(--accent)',
@@ -1059,7 +1061,7 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
           />
         </div>
         <div className="numpad">
-          {[1,2,3,4,5,6,7,8,9].map(n => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
             <div key={n} className="key" onClick={() => pressBoxKey(String(n))}>{n}</div>
           ))}
           <div className="key fn" onClick={clearBox}>Xóa</div>
@@ -1081,14 +1083,14 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
         Nhập <strong>Mã PIN</strong> 6 số để mở tủ
       </p>
       <div className="pin-row">
-        {[0,1,2,3,4,5].map(i => (
+        {[0, 1, 2, 3, 4, 5].map(i => (
           <div key={i} className={`pin-box ${pin.length > i ? 'filled' : ''} ${pinState}`}>
             {pin[i] ? '●' : ''}
           </div>
         ))}
       </div>
       <div className="numpad">
-        {[1,2,3,4,5,6,7,8,9].map(n => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
           <div key={n} className="key" onClick={() => pressPinKey(String(n))}>{n}</div>
         ))}
         <div className="key fn" onClick={clearPin}>Xóa</div>
@@ -1128,14 +1130,14 @@ function StaffScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
     setLoading(true); setMsg('');
     try {
       console.log('%c[CODE] Unlocking with access code:', 'color:#fbbf24', accessCode);
-      
+
       // Mẹo: Nếu mã sai, Server sẽ báo lỗi ngay lập tức (dưới 200ms).
       // Nếu mã đúng, Server sẽ gửi lệnh MQTT và đợi 5s do không có IoT.
       // Dùng Promise.race để ép trả về thành công sau 600ms để mô phỏng tốc độ mở tủ thật.
       const res = await Promise.race([
         api.unlockWithCode(activeLockerId, accessCode),
         new Promise(resolve => setTimeout(() => resolve({
-          success: true, 
+          success: true,
           data: { accepted: true, message: 'IoT device timeout', boxId: null, orderId: null }
         }), 600))
       ]);
@@ -1167,7 +1169,7 @@ function StaffScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
         Nhập mã OTP từ App Mobile, mã PIN hoặc mã QR để mở tủ
       </p>
 
-      <div className="form-group" style={{ marginTop: 24, marginBottom: 32 }}>
+      <div className="form-group" style={{ marginTop: 24, marginBottom: 32, maxWidth: 450, marginLeft: 'auto', marginRight: 'auto', width: '100%' }}>
         <input
           className="input"
           value={code}
@@ -1188,10 +1190,12 @@ function StaffScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
         />
       </div>
 
-      <Btn onClick={submitCode} loading={loading} disabled={code.length < 6}>
-        <Unlock size={18} /> Mở khóa
-      </Btn>
-      {msg && <Msg type="error" text={msg} />}
+      <div style={{ maxWidth: 450, margin: '0 auto', width: '100%' }}>
+        <Btn onClick={submitCode} loading={loading} disabled={code.length < 6}>
+          <Unlock size={18} /> Mở khóa
+        </Btn>
+        {msg && <Msg type="error" text={msg} />}
+      </div>
     </div>
   );
 }
