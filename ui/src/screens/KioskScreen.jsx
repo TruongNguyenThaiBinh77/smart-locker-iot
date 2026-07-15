@@ -554,7 +554,10 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
   const unlockManageBox = async () => {
     setManageLoading(true);
     try {
-      const unlockRes = await api.pickupOrder(manageBox.order.orderId || manageBox.order.id, manageBox.order.pinCode, jwt);
+      const unlockRes = await api.pickupOrder(
+        manageBox.order.orderId || manageBox.order.id,
+        jwt,
+      );
       if (unlockRes.success) {
         alert(unlockRes.data?.message || 'Hộp đã được mở. Vui lòng đóng cửa khi lấy đồ xong.');
       } else {
@@ -571,7 +574,10 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
     if (!window.confirm('Bạn có chắc chắn muốn trả ô tủ? Hành động này không thể hoàn tác.')) return;
     setManageLoading(true);
     try {
-      const unlockRes = await api.pickupOrder(manageBox.order.orderId || manageBox.order.id, manageBox.order.pinCode, jwt);
+      const unlockRes = await api.pickupOrder(
+        manageBox.order.orderId || manageBox.order.id,
+        jwt,
+      );
       if (unlockRes.success) {
         alert('Đã kết thúc thuê! Cửa tủ đang mở, hãy lấy đồ và đóng cửa lại.');
         setManageBox(null);
@@ -589,6 +595,18 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
   const notImplemented = () => {
     alert('Tính năng này trên Kiosk đang được hoàn thiện. Vui lòng sử dụng Mobile App để tiếp tục thao tác.');
   };
+
+  // Ưu tiên dữ liệu box vừa fetch trong màn hình này. `lockerInfo.boxes` từ
+  // parent chỉ poll best-effort mỗi 3s, có thể chậm hơn sau khi vừa đặt tủ.
+  const displayBoxes = boxes.length > 0
+    ? boxes
+    : (lockerInfo?.boxes?.map(b => ({
+        boxId: b.id || b.boxId,
+        boxNumber: b.boxNumber,
+        status: b.status,
+        cellType: b.cellType,
+        type: b.cellType,
+      })) || []);
 
   // Tính số ô trống hiện tại để hiển thị
   const availableCount = boxes.filter(b => b.status === 'AVAILABLE').length;
@@ -625,7 +643,7 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
       {msg && !loading && <Msg type="error" text={msg} />}
 
       <div className="box-grid">
-        {(lockerInfo?.boxes?.map(b => ({ boxId: b.id || b.boxId, boxNumber: b.boxNumber, status: b.status, type: b.cellType })) || boxes).map(box => {
+        {displayBoxes.map(box => {
           const myOrder = myOrders.find(o => o.sendBoxId === box.boxId);
           
           let statusText = 'Trống';
