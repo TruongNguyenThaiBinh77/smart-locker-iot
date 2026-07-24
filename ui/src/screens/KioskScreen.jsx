@@ -506,7 +506,7 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
     if (!order) return false;
     const status = String(order.status || '').toUpperCase();
     const lockerId = order.lockerId ?? order.locker?.id;
-    const hasCredential = Boolean(order.pinCode || order.qrToken);
+    const hasCredential = Boolean(order.pinCode);
     return ['INITIALIZED', 'STORING', 'RETURNED'].includes(status)
       && lockerId === activeLockerId
       && hasCredential;
@@ -557,7 +557,7 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
     if (myOrder) {
       setManageBox({ box, order: myOrder });
     } else if (isAvail) {
-      setSelectedBox(box);
+      setSelectedBox({ ...box, boxId: box.boxId ?? box.id });
     }
   };
 
@@ -935,7 +935,7 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
       await api.mockPaymentCheckout(jwt, orderId).catch(() => {});
       
       const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
-      if (res.success || res.data?.success || true) { // FORCE CONFIRM FOR DEV/DEMO
+      if (res.success && res.data?.accepted) {
         await confirmOrder(); // chuyển RENTAL sang STORING
         showSuccess('Tủ đã mở!',
           `Vui lòng đặt đồ vào ô tủ và đóng cửa. Dùng mã PIN ${orderPin} để mở lại tủ khi lấy đồ.`,
@@ -985,7 +985,7 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
     if (pollRef.current) { clearInterval(pollRef.current); setPolling(false); }
     try {
       const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
-      if (res.success || res.data?.success || true) { // FORCE CONFIRM FOR DEV/DEMO
+      if (res.success && res.data?.accepted) {
         await confirmOrder(); // chuyển RENTAL sang STORING
         showSuccess('Thanh toán thành công!',
           `Tủ đã mở. Vui lòng đặt đồ vào ô #${selectedBox?.boxNumber} và đóng cửa. PIN: ${orderPin}`,
@@ -1104,7 +1104,7 @@ function PinScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
       setMsg(`Không tìm thấy ô tủ số ${boxNum}`);
       return;
     }
-    setSelectedBox(box);
+    setSelectedBox({ ...box, boxId: box.boxId ?? box.id });
     setStep(2);
     setMsg('');
   };
