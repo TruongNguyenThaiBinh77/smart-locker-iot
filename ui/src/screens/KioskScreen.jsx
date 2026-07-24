@@ -920,10 +920,17 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
   // Với RENTAL: confirm order để chuyển sang STORING (bắt buộc với RENTAL flow)
   const confirmOrder = async () => {
     try {
-      await api.confirmOrder(jwt, orderId);
+      const res = await api.confirmOrder(jwt, orderId);
+      if (!res.success) {
+        setMsg(res.data?.message || res.message || 'Bắt đầu kỳ thuê thất bại. Vui lòng thử lại trên mobile app.');
+        return false;
+      }
       console.log('%c[ORDER] ✅ RENTAL confirmed → STORING', 'color:#4ade80');
+      return true;
     } catch (e) {
-      console.warn('[ORDER] ⚠️ Confirm failed (best-effort):', e.message);
+      console.warn('[ORDER] ⚠️ Confirm failed:', e.message);
+      setMsg('Bắt đầu kỳ thuê thất bại. Vui lòng thử lại trên mobile app.');
+      return false;
     }
   };
 
@@ -936,10 +943,11 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
       
       const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
       if (res.success && res.data?.accepted) {
-        await confirmOrder(); // chuyển RENTAL sang STORING
-        showSuccess('Tủ đã mở!',
-          `Vui lòng đặt đồ vào ô tủ và đóng cửa. Dùng mã PIN ${orderPin} để mở lại tủ khi lấy đồ.`,
-          successExtra);
+        if (await confirmOrder()) {
+          showSuccess('Tủ đã mở!',
+            `Vui lòng đặt đồ vào ô tủ và đóng cửa. Dùng mã PIN ${orderPin} để mở lại tủ khi lấy đồ.`,
+            successExtra);
+        }
       } else {
         setMsg(res.data?.message || res.message || 'Lỗi mở tủ');
       }
@@ -986,10 +994,11 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
     try {
       const res = await api.unlockBox(activeLockerId, orderPin, selectedBox?.boxId, 'DROP_OFF');
       if (res.success && res.data?.accepted) {
-        await confirmOrder(); // chuyển RENTAL sang STORING
-        showSuccess('Thanh toán thành công!',
-          `Tủ đã mở. Vui lòng đặt đồ vào ô #${selectedBox?.boxNumber} và đóng cửa. PIN: ${orderPin}`,
-          successExtra);
+        if (await confirmOrder()) {
+          showSuccess('Thanh toán thành công!',
+            `Tủ đã mở. Vui lòng đặt đồ vào ô #${selectedBox?.boxNumber} và đóng cửa. PIN: ${orderPin}`,
+            successExtra);
+        }
       } else {
         setMsg(res.data?.message || res.message || 'Lỗi mở tủ');
       }
