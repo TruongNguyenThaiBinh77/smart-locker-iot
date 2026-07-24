@@ -502,6 +502,16 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
   const [manageBox, setManageBox] = useState(null); // { box, order }
   const [manageLoading, setManageLoading] = useState(false);
 
+  const isActiveManageableOrder = (order) => {
+    if (!order) return false;
+    const status = String(order.status || '').toUpperCase();
+    const lockerId = order.lockerId ?? order.locker?.id;
+    const hasCredential = Boolean(order.pinCode || order.qrToken);
+    return ['INITIALIZED', 'STORING', 'RETURNED'].includes(status)
+      && lockerId === activeLockerId
+      && hasCredential;
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true); setMsg('');
     try {
@@ -554,14 +564,21 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
   const unlockManageBox = async () => {
     setManageLoading(true);
     try {
-      const unlockRes = await api.pickupOrder(
-        manageBox.order.orderId || manageBox.order.id,
-        jwt,
+      const pinCode = manageBox.order.pinCode;
+      if (!pinCode) {
+        alert('Đơn này không còn mã PIN hoạt động. Vui lòng thao tác lại trên mobile app.');
+        return;
+      }
+      const unlockRes = await api.unlockBox(
+        activeLockerId,
+        pinCode,
+        manageBox.box.boxId,
+        'PICKUP',
       );
-      if (unlockRes.success) {
+      if (unlockRes.success && unlockRes.data?.accepted) {
         alert(unlockRes.data?.message || 'Hộp đã được mở. Vui lòng đóng cửa khi lấy đồ xong.');
       } else {
-        alert(unlockRes.message || 'Lỗi mở hộp');
+        alert(unlockRes.data?.message || unlockRes.message || 'Lỗi mở hộp');
       }
     } catch (e) {
       alert('Lỗi kết nối máy chủ');
@@ -571,25 +588,7 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
   };
 
   const endManageBox = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn trả ô tủ? Hành động này không thể hoàn tác.')) return;
-    setManageLoading(true);
-    try {
-      const unlockRes = await api.pickupOrder(
-        manageBox.order.orderId || manageBox.order.id,
-        jwt,
-      );
-      if (unlockRes.success) {
-        alert('Đã kết thúc thuê! Cửa tủ đang mở, hãy lấy đồ và đóng cửa lại.');
-        setManageBox(null);
-        fetchData();
-      } else {
-        alert(unlockRes.message || 'Lỗi trả ô tủ');
-      }
-    } catch (e) {
-      alert('Lỗi kết nối máy chủ');
-    } finally {
-      setManageLoading(false);
-    }
+    alert('Vui lòng dùng Mobile App để xác nhận kết thúc thuê sau khi đã lấy đồ và đóng tủ.');
   };
 
   const notImplemented = () => {
@@ -644,7 +643,10 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
 
       <div className="box-grid">
         {displayBoxes.map(box => {
-          const myOrder = myOrders.find(o => o.sendBoxId === box.boxId);
+          const myOrder = myOrders.find(o =>
+            isActiveManageableOrder(o)
+            && (o.sendBoxId === box.boxId || o.receiveBoxId === box.boxId)
+          );
           
           let statusText = 'Trống';
           let boxClass = 'available';
@@ -693,8 +695,8 @@ function BoxSelectionScreen({ go, goHome, jwt, userName, selectedBox, setSelecte
             <div className="qr-container">
                <QRCodeSVG value={manageBox.order.qrToken || 'qr-placeholder'} size={110} />
                <div className="pin-code-display">
-                 {manageBox.order.pinCode.split('').map((char, i) => <span key={i}>{char}</span>)}
-               </div>
+                 {(manageBox.order.pinCode || '').split('').map((char, i) => <span key={i}>{char}</span>)}
+                </div>
                <p style={{fontSize: 12, color: 'var(--text-muted)'}}>Mã PIN / QR mở tủ của bạn</p>
             </div>
             
@@ -1072,7 +1074,7 @@ function PaymentScreen({ go, goHome, jwt, orderId, orderPin, orderCode, totalPri
 // ============================================
 // PIN
 // ============================================
-function PinScreen({ goHome, showSuccess, lockerInfo }) {
+function PinScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
   const [step, setStep] = useState(1);
   const [boxNum, setBoxNum] = useState('');
   const [selectedBox, setSelectedBox] = useState(null);
@@ -1131,7 +1133,7 @@ function PinScreen({ goHome, showSuccess, lockerInfo }) {
 
       if (verifyRes.success && verifyRes.data?.valid) {
         const unlockRes = await api.unlockBox(activeLockerId, code, selectedBox.boxId, 'PICKUP');
-        if (unlockRes.success || unlockRes.data?.success) {
+        if (unlockRes.success && unlockRes.data?.accepted) {
           setPinState('success');
           const oCode = verifyRes.data?.orderCode || unlockRes.data?.orderCode || '';
           setTimeout(() => showSuccess(
@@ -1257,18 +1259,9 @@ function StaffScreen({ goHome, showSuccess, lockerInfo, activeLockerId }) {
     try {
       console.log('%c[CODE] Unlocking with access code:', 'color:#fbbf24', accessCode);
 
-      // Mẹo: Nếu mã sai, Server sẽ báo lỗi ngay lập tức (dưới 200ms).
-      // Nếu mã đúng, Server sẽ gửi lệnh MQTT và đợi 5s do không có IoT.
-      // Dùng Promise.race để ép trả về thành công sau 600ms để mô phỏng tốc độ mở tủ thật.
-      const res = await Promise.race([
-        api.unlockWithCode(activeLockerId, accessCode),
-        new Promise(resolve => setTimeout(() => resolve({
-          success: true,
-          data: { accepted: true, message: 'IoT device timeout', boxId: null, orderId: null }
-        }), 600))
-      ]);
+      const res = await api.unlockWithCode(activeLockerId, accessCode);
 
-      if (res.success && (res.data?.accepted || res.data?.message === 'IoT device timeout')) {
+      if (res.success && res.data?.accepted) {
         setTimeout(() => showSuccess(
           'Đã mở khóa!',
           'Hộp đã được mở. Vui lòng đóng cửa khi xong.',
