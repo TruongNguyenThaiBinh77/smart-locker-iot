@@ -16,7 +16,7 @@ export default defineConfig({
         changeOrigin: true
       },
       '/api': {
-        target: 'http://146.190.84.136:8080',
+        target: 'https://api.locker-drone.tech',
         changeOrigin: true,
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
